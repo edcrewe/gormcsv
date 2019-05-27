@@ -1,0 +1,7 @@
+"name","code","latitude","longitude","alias"
+"NOLAT","XX",null,1,"Moon","Lunar"
+"NOLATLONG","OO",null,null,"Sun","Solar"
+"OKCOUNTRY1","K1",16.75,-62.2,"OKCountry1"
+"OKCOUNTRY2","K2",1.75,-34.2,"OKCountry2"
+'BadPK',null,1,2,'no primary key'
+'BadPK2',null,1,2,'no primary key again'
