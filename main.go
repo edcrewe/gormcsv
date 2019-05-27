@@ -1,30 +1,21 @@
+// Copyright © 2019 NAME HERE <EMAIL ADDRESS>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
-import (
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
-)
+import "github.com/edcrewe/gormcsv/cmd"
 
 func main() {
-	db, err := gorm.Open("sqlite3", "test.db")
-	if err != nil {
-		panic("failed to connect database")
-	}
-	defer db.Close()
-
-	// Migrate the schema
-	db.AutoMigrate(&Country{})
-
-	// Create
-	db.Create(&Country{Code: "AZ", Name: "AZERBAIJAN", Latitude: 40.5, Longtitude: 47.5, Alias: "Azerbaijan"})
-	// Read
-	var country Country
-	db.First(&country, 1)                // find country with id 1
-	db.First(&country, "code = ?", "AZ") // find country with code l1212
-
-	// Update - update country's alias
-	db.Model(&country).Update("Alias", "New Azer")
-
-	// Delete - delete country
-	db.Delete(&country)
+	cmd.Execute()
 }

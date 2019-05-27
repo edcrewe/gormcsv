@@ -1,5 +1,5 @@
 // Models for loading CSV data  - these can be generated
-package main
+package importcsv
 
 import (
 	"github.com/jinzhu/gorm"
