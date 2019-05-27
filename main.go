@@ -5,16 +5,6 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
-// ISO country (location) codes.
-type Country struct {
-	gorm.Model
-	Code       string
-	Name       string
-	Latitude   float32
-	Longtitude float32
-	Alias      string
-}
-
 func main() {
 	db, err := gorm.Open("sqlite3", "test.db")
 	if err != nil {
