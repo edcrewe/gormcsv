@@ -9,15 +9,15 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 )
 
 // Connect to the Database
 func connectDB() *gorm.DB {
 	db, err := gorm.Open("sqlite3", "test.db")
 	if err != nil {
-		panic("failed to connect database")
+		log.Fatal("failed to connect database")
 	}
-	defer db.Close()
 	return db
 }
 
@@ -33,19 +33,35 @@ func ImportCSV() {
 	db := connectDB()
 	createModels(db)
 	var country Country
-	// Create
-	db.Create(&Country{Code: "AZ", Name: "AZERBAIJAN", Latitude: 40.5, Longtitude: 47.5, Alias: "Azerbaijan"})
 
 	csvFile, _ := os.Open("tests/fixtures/countries.csv")
 	reader := csv.NewReader(bufio.NewReader(csvFile))
+	errors := []error{}
+	fields := map[string]int{
+		"Name":       0,
+		"Code":       1,
+		"Latitude":   2,
+		"Longtitude": 3,
+		"Alias":      4,
+	}
 	for {
 		line, error := reader.Read()
 		if error == io.EOF {
 			break
 		} else if error != nil {
-			log.Fatal(error)
+			errors = append(errors, error)
+			continue
 		}
-		//		fmt.Println(line)
+		// Create
+		lat, _ := strconv.ParseFloat(line[fields["Latitude"]], 64)
+		longt, _ := strconv.ParseFloat(line[fields["Longtitude"]], 64)
+		db.Create(&Country{
+			Code:       line[fields["Code"]],
+			Name:       line[fields["Name"]],
+			Latitude:   lat,
+			Longtitude: longt,
+			Alias:      line[fields["Alias"]],
+		})
 	}
 	fmt.Println("test")
 	// Read
@@ -57,4 +73,5 @@ func ImportCSV() {
 
 	// Delete - delete country
 	db.Delete(&country)
+	db.Close()
 }

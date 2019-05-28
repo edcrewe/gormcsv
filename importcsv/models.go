@@ -11,8 +11,8 @@ type Country struct {
 	gorm.Model
 	Code       string
 	Name       string
-	Latitude   float32
-	Longtitude float32
+	Latitude   float64
+	Longtitude float64
 	Alias      string
 }
 
