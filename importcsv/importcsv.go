@@ -32,8 +32,6 @@ func createModels(db *gorm.DB) {
 func ImportCSV() {
 	db := connectDB()
 	createModels(db)
-	var country Country
-
 	csvFile, _ := os.Open("tests/fixtures/countries.csv")
 	reader := csv.NewReader(bufio.NewReader(csvFile))
 	errors := []error{}
@@ -44,6 +42,7 @@ func ImportCSV() {
 		"Longtitude": 3,
 		"Alias":      4,
 	}
+	var count int = 0
 	for {
 		line, error := reader.Read()
 		if error == io.EOF {
@@ -62,16 +61,8 @@ func ImportCSV() {
 			Longtitude: longt,
 			Alias:      line[fields["Alias"]],
 		})
+		count += 1
 	}
-	fmt.Println("test")
-	// Read
-	db.First(&country, 1)                // find country with id 1
-	db.First(&country, "code = ?", "AZ") // find country with code l1212
-
-	// Update - update country's alias
-	db.Model(&country).Update("Alias", "New Azer")
-
-	// Delete - delete country
-	db.Delete(&country)
+	fmt.Printf("Imported %d rows to Country", count)
 	db.Close()
 }
