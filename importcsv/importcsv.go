@@ -35,13 +35,9 @@ func ImportCSV() {
 	csvFile, _ := os.Open("tests/fixtures/countries.csv")
 	reader := csv.NewReader(bufio.NewReader(csvFile))
 	errors := []error{}
-	fields := map[string]int{
-		"Name":       0,
-		"Code":       1,
-		"Latitude":   2,
-		"Longtitude": 3,
-		"Alias":      4,
-	}
+	meta := FieldMeta{}
+	meta.getmeta(&Country{}, "name,code,latitude,longtitude,alias")
+	fields := meta.fieldcols
 	var count int = 0
 	for {
 		line, error := reader.Read()
@@ -51,9 +47,17 @@ func ImportCSV() {
 			errors = append(errors, error)
 			continue
 		}
+		lat, error := strconv.ParseFloat(line[fields["Latitude"]], 64)
+		if error != nil {
+			errors = append(errors, error)
+			continue
+		}
+		longt, error := strconv.ParseFloat(line[fields["Longtitude"]], 64)
+		if error != nil {
+			errors = append(errors, error)
+			continue
+		}
 		// Create
-		lat, _ := strconv.ParseFloat(line[fields["Latitude"]], 64)
-		longt, _ := strconv.ParseFloat(line[fields["Longtitude"]], 64)
 		db.Create(&Country{
 			Code:       line[fields["Code"]],
 			Name:       line[fields["Name"]],
@@ -64,5 +68,11 @@ func ImportCSV() {
 		count += 1
 	}
 	fmt.Printf("Imported %d rows to Country", count)
+	if errors != nil {
+		fmt.Printf("Failed import for %d rows due to errors:\n", len(errors))
+		for _, error := range errors {
+			fmt.Println(error)
+		}
+	}
 	db.Close()
 }
