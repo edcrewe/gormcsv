@@ -29,10 +29,10 @@ func createModels(db *gorm.DB) {
 	}
 }
 
-func ImportCSV() {
+func ImportCSV(files string) {
 	db := connectDB()
 	createModels(db)
-	csvFile, _ := os.Open("tests/fixtures/countries.csv")
+	csvFile, _ := os.Open(files)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
 	errors := []error{}
 	meta := FieldMeta{}
@@ -67,7 +67,7 @@ func ImportCSV() {
 		})
 		count += 1
 	}
-	fmt.Printf("Imported %d rows to Country", count)
+	fmt.Printf("Imported %d rows to Country\n", count)
 	if errors != nil {
 		fmt.Printf("Failed import for %d rows due to errors:\n", len(errors))
 		for _, error := range errors {

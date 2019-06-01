@@ -23,29 +23,18 @@ import (
 // importcsvCmd represents the importcsv command
 var importcsvCmd = &cobra.Command{
 	Use:   "importcsv",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Populates one or more tables from CSV file(s)",
+	Long: `The data import command. CSV files must be named the same as the target Model / Table
+           or else --model should be supplied`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("importcsv called")
-		importcsv.ImportCSV()
+		Files, _ := cmd.Flags().GetString("files")
+		fmt.Printf("Import csv for %s\n", Files)
+		importcsv.ImportCSV(Files)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(importcsvCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// importcsvCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// importcsvCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Here you will define your flags and configuration settings specific to importcsv
 }
