@@ -29,7 +29,8 @@ var importcsvCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		Files, _ := cmd.Flags().GetString("files")
 		fmt.Printf("Import csv for %s\n", Files)
-		importcsv.ImportCSV(Files)
+		mcsv := importcsv.ModelCSV{}
+		mcsv.ImportCSV(Files)
 	},
 }
 
