@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
 )
 
 // Connect to the Database
@@ -29,42 +28,33 @@ func createModels(db *gorm.DB) {
 	}
 }
 
+/*
+Main command method for importcsv
+ */
 func ImportCSV(files string) {
 	db := connectDB()
 	createModels(db)
 	csvFile, _ := os.Open(files)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
-	errors := []error{}
 	meta := FieldMeta{}
-	meta.getmeta(&Country{}, "name,code,latitude,longtitude,alias")
-	fields := meta.fieldcols
+	meta.setmeta(&Country{}, "name,code,latitude,longtitude,alias")
+	errors := []error{}
 	var count int = 0
 	for {
-		line, error := reader.Read()
+		record, error := reader.Read()
 		if error == io.EOF {
 			break
 		} else if error != nil {
 			errors = append(errors, error)
 			continue
 		}
-		lat, error := strconv.ParseFloat(line[fields["Latitude"]], 64)
-		if error != nil {
-			errors = append(errors, error)
-			continue
-		}
-		longt, error := strconv.ParseFloat(line[fields["Longtitude"]], 64)
+		country, error := meta.FillStruct(&Country{}, record)
 		if error != nil {
 			errors = append(errors, error)
 			continue
 		}
 		// Create
-		db.Create(&Country{
-			Code:       line[fields["Code"]],
-			Name:       line[fields["Name"]],
-			Latitude:   lat,
-			Longtitude: longt,
-			Alias:      line[fields["Alias"]],
-		})
+		db.Create(country)
 		count += 1
 	}
 	fmt.Printf("Imported %d rows to Country\n", count)
