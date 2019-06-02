@@ -22,7 +22,7 @@ type FieldMeta struct {
 */
 func (meta *FieldMeta) setmeta(model interface{}, csvfields string) {
 	meta.fieldcols = make(map[string]int)
-	meta.fieldtypes = make(map[string]reflect.Type)
+	// meta.fieldtypes = make(map[string]reflect.Type)
 	csv := strings.Split(csvfields, ",")
 	structValue := reflect.ValueOf(model).Elem()
 	for i := 0; i < structValue.NumField(); i++ {
@@ -30,12 +30,12 @@ func (meta *FieldMeta) setmeta(model interface{}, csvfields string) {
 		field := strings.ToLower(typeField.Name)
 		for j := range csv {
 			if csv[j] == field {
-				// Found!
 				meta.fieldcols[typeField.Name] = j
-				meta.fieldtypes[typeField.Name] = typeField.Type
+				// Dont currently use field type or tag metadata
+				// meta.fieldtypes[typeField.Name] = typeField.Type
+				// tag := typeField.Tag
 			}
 		}
-		// tag := typeField.Tag
 	}
 	fmt.Println("Using field mapping = ", meta.fieldcols)
 }
@@ -51,6 +51,9 @@ func (meta *FieldMeta) getMap(record []string) map[string]string {
 	return mData
 }
 
+/*
+Type converter for CSV string fields to correct Struct type
+ */
 func (meta *FieldMeta) convert(value string, to string) (interface{}, error) {
 	switch to {
 	case "float64":
