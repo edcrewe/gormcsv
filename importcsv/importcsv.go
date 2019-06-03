@@ -3,28 +3,18 @@ package importcsv
 import (
 	"bufio"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"io"
 	"log"
 	"os"
-	"reflect"
 	"strings"
 )
 
 type ModelCSV struct {
-	structs map[string]reflect.Type
-}
-
-/*
-Init by finding all the models and loading them to a map
- */
-func (mcsv *ModelCSV) init() {
-	mcsv.structs = make(map[string]reflect.Type)
-	mcsv.structs["country"] = reflect.TypeOf(Country{})
-	// &UnitOfMeasure{}, &Organisation{}, &Item{}}
-
+	 fields string
 }
 
 /*
@@ -39,60 +29,72 @@ func (mcsv *ModelCSV) connectDB() *gorm.DB {
 }
 
 /*
-Migrate the schema
+Create the schema in the db
  */
-func (mcsv *ModelCSV) createSchema(db *gorm.DB) {
-	for _, model := range mcsv.structs {
+func (mcsv *ModelCSV) createSchema(db *gorm.DB, factory ModelFactory) {
+	for _, name := range factory.models {
+		model := factory.New(name)
 		db.AutoMigrate(model)
 	}
 }
 
-func (mcsv *ModelCSV) modelFromFile(filePath string) (reflect.Type, error) {
+func (mcsv *ModelCSV) modelFromFile(filePath string) (string, error) {
 	parts := strings.Split(filePath, "/")
-	// fmt.Sprintf("%v", filepath.Base)
-	parts = strings.Split(parts[0], ".")
-	return mcsv.structs[strings.ToLower(parts[0])], nil
+	parts = strings.Split(parts[len(parts) - 1], ".")
+	name := strings.ToLower(parts[0])
+	found := MakeModels().New(name)
+	if found != nil {
+		return name, nil
+	} else {
+		return "", errors.New("Model not found for " + name)
+	}
 }
 
 /*
 Main command method for importcsv
  */
 func (mcsv *ModelCSV) ImportCSV(file string) {
+	errorlist := []error{}
 	db := mcsv.connectDB()
-	mcsv.createSchema(db)
+	factory := MakeModels()
+	mcsv.createSchema(db, factory)
 	/*files := []string
 	if strings.HasSuffix(file, ".csv") {
 		files.append(file)
 	} */
 	csvFile, _ := os.Open(file)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
+	mcsv.fields = "name,code,latitude,longtitude,alias"
 	meta := FieldMeta{}
-	model := Country{}
-	// model, _ = mcsv.modelFromFile(file)
-	meta.setmeta(&model, "name,code,latitude,longtitude,alias")
-	errors := []error{}
+	name, error := mcsv.modelFromFile(file)
+	if error != nil {
+		fmt.Println(error)
+		return
+	}
+	model := factory.New(name)
+	meta.setmeta(model, mcsv.fields)
 	var count int = 0
 	for {
 		record, error := reader.Read()
 		if error == io.EOF {
 			break
 		} else if error != nil {
-			errors = append(errors, error)
+			errorlist= append(errorlist, error)
 			continue
 		}
-		country, error := meta.FillStruct(&Country{}, record)
+		model, error := meta.RecordToModel(factory.New(name) , record)
 		if error != nil {
-			errors = append(errors, error)
+			errorlist = append(errorlist, error)
 			continue
 		}
 		// Create
-		db.Create(country)
+		db.Create(model)
 		count += 1
 	}
 	fmt.Printf("Imported %d rows to Country\n", count)
-	if errors != nil {
-		fmt.Printf("Failed import for %d rows due to errors:\n", len(errors))
-		for _, error := range errors {
+	if errorlist != nil {
+		fmt.Printf("Failed import for %d rows due to errors:\n", len(errorlist))
+		for _, error := range errorlist {
 			fmt.Println(error)
 		}
 	}

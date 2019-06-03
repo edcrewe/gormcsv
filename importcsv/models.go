@@ -3,8 +3,23 @@ package importcsv
 
 import (
 	"github.com/jinzhu/gorm"
+	"strings"
 	"time"
 )
+
+// GORM Model factory
+type ModelFactory struct {
+	models []string
+}
+
+/*
+Make a single instance of the model factory for use in importcsv
+ */
+func MakeModels() ModelFactory {
+	return ModelFactory{
+		[]string{"country", "unitofmeasure", "organisation", "item"},
+	}
+}
 
 // ISO country (location) codes.
 type Country struct {
@@ -41,4 +56,22 @@ type Item struct {
 	Date           *time.Time
 	Country        Country
 	CountryID      int
+}
+
+/*
+Factory New method to create a model given its name
+*/
+func (f ModelFactory) New(name string) interface{} {
+	name = strings.ToLower(name)
+	switch name {
+	case "country":
+		return &Country{}
+	case "unitofmeasure":
+		return &UnitOfMeasure{}
+	case "organisation":
+		return &Organisation{}
+	case "item":
+		return &Item{}
+	}
+	return nil
 }

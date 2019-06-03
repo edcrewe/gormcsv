@@ -14,7 +14,7 @@ import (
  */
 type FieldMeta struct {
 	fieldcols map[string]int
-	fieldtypes map[string]reflect.Type
+	// fieldtypes map[string]reflect.Type
 }
 
 /* Create index lookup for csv parsed line array fields
@@ -67,7 +67,7 @@ func (meta *FieldMeta) convert(value string, to string) (interface{}, error) {
 /*
 Populate Struct fields from maprecord
 */
-func (meta *FieldMeta) FillStruct(model interface{}, record []string) (interface{}, error) {
+func (meta *FieldMeta) RecordToModel(model interface{}, record []string) (interface{}, error) {
 	mData := meta.getMap(record)
 	structValue := reflect.ValueOf(model).Elem()
 	for name, value := range mData {
