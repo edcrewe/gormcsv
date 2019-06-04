@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 /* Struct for metadata about a Model
@@ -52,16 +53,48 @@ func (meta *FieldMeta) getMap(record []string) map[string]string {
 }
 
 /*
-Type converter for CSV string fields to correct Struct type
+Type converter for CSV string fields to correct basic type or time
  */
 func (meta *FieldMeta) convert(value string, to string) (interface{}, error) {
-	switch to {
-	case "float64":
-		return strconv.ParseFloat(value, 64)
-	case "int64":
-		return strconv.Atoi(value)
+	if to == "string" {
+		return value, nil
 	}
-	return value, nil
+	bits := 0
+	var err error
+	prefixes := []string{"float", "uint", "int"}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(to, prefix){
+			bitstr := to[len(prefix):]
+			if bitstr != "" {
+				bits, err = strconv.Atoi(bitstr)
+			}
+			if err != nil {
+				return nil, err
+			}
+			to = prefix
+		}
+	}
+	switch to {
+	case "float":
+		return strconv.ParseFloat(value, bits)
+	case "uint":
+		return strconv.ParseUint(value, 10, bits)
+	case "int":
+		return strconv.ParseInt(value, 10, bits)
+	case "bool":
+		return strconv.ParseBool(value)
+	case "date":
+		layouts := []string{"2006-01-02T15:04:05.000Z", "2006-01-02T15:04:05", "28/02/2003"}
+		var date time.Time
+		for _, layout := range layouts {
+			date, err = time.Parse(layout, value)
+			if err != nil {
+				return nil, fmt.Errorf("Could not convert time %s to %s, unknown date fmt", value, to)
+			}
+			return date, nil
+		}
+	}
+	return nil, fmt.Errorf("Could not convert %s to %s", value, to)
 }
 
 /*
