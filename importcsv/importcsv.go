@@ -72,7 +72,7 @@ func (mcsv *ModelCSV) ImportCSV(file string) {
 		return
 	}
 	model := factory.New(name)
-	meta.setmeta(model, mcsv.fields)
+	meta.Setmeta(model, mcsv.fields)
 	var count int = 0
 	for {
 		record, error := reader.Read()

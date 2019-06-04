@@ -21,7 +21,7 @@ type FieldMeta struct {
 /* Create index lookup for csv parsed line array fields
    Match lowercased name to field name and create index map
 */
-func (meta *FieldMeta) setmeta(model interface{}, csvfields string) {
+func (meta *FieldMeta) Setmeta(model interface{}, csvfields string) {
 	meta.fieldcols = make(map[string]int)
 	// meta.fieldtypes = make(map[string]reflect.Type)
 	csv := strings.Split(csvfields, ",")
@@ -55,7 +55,7 @@ func (meta *FieldMeta) getMap(record []string) map[string]string {
 /*
 Type converter for CSV string fields to correct basic type or time
  */
-func (meta *FieldMeta) convert(value string, to string) (interface{}, error) {
+func (meta *FieldMeta) Convert(value string, to string) (interface{}, error) {
 	if to == "string" {
 		return value, nil
 	}
@@ -106,7 +106,7 @@ func (meta *FieldMeta) RecordToModel(model interface{}, record []string) (interf
 	for name, value := range mData {
 		structFieldValue := structValue.FieldByName(name)
 		fieldType := structFieldValue.Type()
-		converted, error := meta.convert(value,  fieldType.Name())
+		converted, error := meta.Convert(value,  fieldType.Name())
 		if error != nil {
 			return nil, error
 		}
