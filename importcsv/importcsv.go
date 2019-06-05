@@ -75,6 +75,8 @@ func (mcsv *ModelCSV) ImportCSV(file string) {
 	meta.Setmeta(model, mcsv.fields)
 	var count int = 0
 	var duplicates int = 0
+	// Drop log errors and handle as aggregate msgs
+	db.LogMode(false)
 	for {
 		record, error := reader.Read()
 		if error == io.EOF {
@@ -100,6 +102,7 @@ func (mcsv *ModelCSV) ImportCSV(file string) {
 			count += 1
 		}
 	}
+	db.LogMode(true)
 	fmt.Printf("Imported %d rows to Country\n", count)
 	if duplicates > 0 {
 		fmt.Printf("Skipped %d duplicate rows\n", duplicates)
