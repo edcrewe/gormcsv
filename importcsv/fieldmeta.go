@@ -84,15 +84,20 @@ func (meta *FieldMeta) Convert(value string, to string) (interface{}, error) {
 	case "bool":
 		return strconv.ParseBool(value)
 	case "date":
+		var err error
 		layouts := []string{"2006-01-02T15:04:05.000Z", "2006-01-02T15:04:05", "28/02/2003"}
 		var date time.Time
 		for _, layout := range layouts {
 			date, err = time.Parse(layout, value)
 			if err != nil {
-				return nil, fmt.Errorf("Could not convert time %s to %s, unknown date fmt", value, to)
+				continue
 			}
 			return date, nil
 		}
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert time %s to %s, unknown date fmt", value, to)
+		}
+
 	}
 	return nil, fmt.Errorf("Could not convert %s to %s", value, to)
 }
