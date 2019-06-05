@@ -74,12 +74,13 @@ func (mcsv *ModelCSV) ImportCSV(file string) {
 	model := factory.New(name)
 	meta.Setmeta(model, mcsv.fields)
 	var count int = 0
+	var duplicates int = 0
 	for {
 		record, error := reader.Read()
 		if error == io.EOF {
 			break
 		} else if error != nil {
-			errorlist= append(errorlist, error)
+			errorlist = append(errorlist, error)
 			continue
 		}
 		model, error := meta.RecordToModel(factory.New(name) , record)
@@ -88,10 +89,21 @@ func (mcsv *ModelCSV) ImportCSV(file string) {
 			continue
 		}
 		// Create
-		db.Create(model)
-		count += 1
+		result := db.Create(model)
+		if result.Error != nil {
+			if strings.Contains(result.Error.Error(), "UNIQUE constraint failed") {
+				duplicates += 1
+			} else {
+				errorlist = append(errorlist, error)
+			}
+		} else {
+			count += 1
+		}
 	}
 	fmt.Printf("Imported %d rows to Country\n", count)
+	if duplicates > 0 {
+		fmt.Printf("Skipped %d duplicate rows\n", duplicates)
+	}
 	if errorlist != nil {
 		fmt.Printf("Failed import for %d rows due to errors:\n", len(errorlist))
 		for _, error := range errorlist {

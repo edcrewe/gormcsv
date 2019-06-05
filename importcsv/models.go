@@ -23,8 +23,7 @@ func MakeModels() ModelFactory {
 
 // ISO country (location) codes.
 type Country struct {
-	gorm.Model
-	Code       string
+	Code       string `gorm:"primary_key"`
 	Name       string
 	Latitude   float64
 	Longtitude float64

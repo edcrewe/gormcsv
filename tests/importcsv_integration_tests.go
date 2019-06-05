@@ -19,3 +19,4 @@ func TestMain(m *testing.M) {
 	meta.Setmeta(model, "name,code,latitude,longtitude,alias")
 	m.Run()
 }
+
