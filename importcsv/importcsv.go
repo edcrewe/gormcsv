@@ -20,7 +20,7 @@ type ModelCSV struct {
 /*
 Connect to the Database
  */
-func (mcsv *ModelCSV) connectDB() *gorm.DB {
+func (mcsv *ModelCSV) ConnectDB() *gorm.DB {
 	db, err := gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		log.Fatal("failed to connect database")
@@ -31,7 +31,7 @@ func (mcsv *ModelCSV) connectDB() *gorm.DB {
 /*
 Create the schema in the db
  */
-func (mcsv *ModelCSV) createSchema(db *gorm.DB, factory ModelFactory) {
+func (mcsv *ModelCSV) CreateSchema(db *gorm.DB, factory ModelFactory) {
 	for _, name := range factory.models {
 		model := factory.New(name)
 		db.AutoMigrate(model)
@@ -55,13 +55,17 @@ Main command method for importcsv
  */
 func (mcsv *ModelCSV) ImportCSV(file string) {
 	errorlist := []error{}
-	db := mcsv.connectDB()
+	db := mcsv.ConnectDB()
 	factory := MakeModels()
-	mcsv.createSchema(db, factory)
+	mcsv.CreateSchema(db, factory)
 	/*files := []string
 	if strings.HasSuffix(file, ".csv") {
 		files.append(file)
 	} */
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		fmt.Printf("The fixture file %s does not exist", file)
+		return
+	}
 	csvFile, _ := os.Open(file)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
 	mcsv.fields = "name,code,latitude,longtitude,alias"
