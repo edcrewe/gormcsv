@@ -24,16 +24,17 @@ func main() {
 	d.Models["unitofmeasure"] = "UnitOfMeasure"
 	d.Models["organisation"] = "Organisation"
 	d.Models["item"] = "Item"
-	/* d.Fields["Country"] = {field}
-	d.Fields["UnitOfMeasure"] = []field{}
-	d.Fields["Organisation"] = []field{}
-	d.Fields["Item"] = []field{}
-	{{range $k, $v := .Fields}}
-	struct {{$k}} {
+	d.Fields = map[string][]field{}
+	d.Fields["Country"] = []field{
+		field{"Code","string", `gorm:"primary_key"`},
 	}
-	{{end}}
-
-	*/
+	d.Fields["UnitOfMeasure"] = []field{
+		field{"Name","string", ""},
+	}
+	d.Fields["Organisation"] = []field{
+		field{"Name","string", ""},
+	}
+	d.Fields["Item"] = []field{}
 	t := template.Must(template.New("models").Parse(modelsTemplate))
 	t.Execute(os.Stdout, d)
 }
@@ -64,6 +65,14 @@ func MakeModels() ModelFactory {
 	return factory
 	}
 }
+
+{{range $k, $v := .Fields}}
+struct {{$k}} {
+   {{ range $f := $v }}
+   {{$f.Name}} {{$f.Type}} {{$f.Tag}}
+   {{end}}
+}
+{{end}}
 
 func (f ModelFactory) New(name string) interface{} {
 	name = strings.ToLower(name)
