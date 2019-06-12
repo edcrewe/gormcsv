@@ -16,23 +16,20 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/edcrewe/gormcsv/importcsv"
 	"github.com/spf13/cobra"
-
 )
 
 // inspectcsvCmd represents the inspectcsv command
 var inspectcsvCmd = &cobra.Command{
 	Use:   "inspectcsv",
-	Short: "Populate a database from CSV files",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Create models from CSV files",
+	Long: `The data inspect command. CSV files must be named the same as the target Model / Table`,
 	Run: func(cmd *cobra.Command, args []string) {
-		//Files, _ := cmd.Flags().GetString("files")
-		fmt.Printf("inspectcsv called for %s", Files)
+		Files, _ := cmd.Flags().GetString("files")
+		fmt.Printf("Inspect csv for %s\n to generate models.go", Files)
+		mcsv := importcsv.ModelCSV{}
+		mcsv.InspectCSV(Files)
 	},
 }
 
