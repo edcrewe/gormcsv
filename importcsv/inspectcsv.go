@@ -41,6 +41,11 @@ type CSVMeta struct {
 	Fields map[string][]field
 }
 
+
+func (csvmeta *CSVMeta) PopulateModel(name string, path string) {
+
+}
+
 /*
 Take a name and list of values from CSV then test the values to work out the type
  */
