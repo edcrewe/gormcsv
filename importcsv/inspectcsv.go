@@ -31,6 +31,7 @@ type field struct {
 
 var mapLength = map[int]string{2:"8", 4:"16", 9:"32", 20:"64"}
 var keysLength = []int {2, 4, 9, 20}
+var typeStrings = []string {"bool", "date", "string"}
 var reNumber = regexp.MustCompile(`^[-+]?\d*\.?\d*$`)
 
 
@@ -64,13 +65,16 @@ func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field{
 			}
 		}
 		if typeStr == "" {
-			_, err := csvmeta.Convert(valueStr, "time")
-			if err != nil {
-				typeStr = "string"
+			for _, typeString := range typeStrings {
+				_, err := csvmeta.Convert(valueStr, typeString)
+				if err == nil {
+					typeStr = typeString
+					break
+				}
 			}
 		}
 	}
-	if typeStr != "string" && typeStr != "time" {
+	if typeStr != "string" && typeStr != "date" && typeStr != "bool" {
 		for _, length := range keysLength {
 			if vLength <= length {
 				typeStr = typeStr + mapLength[length]
