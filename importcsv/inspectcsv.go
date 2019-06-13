@@ -19,6 +19,10 @@ float64     the set of all IEEE-754 64-bit floating-point numbers
 package importcsv
 
 import (
+	"bufio"
+	"encoding/csv"
+	"fmt"
+	"io"
 	"regexp"
 	"strings"
 )
@@ -37,13 +41,47 @@ var reNumber = regexp.MustCompile(`^[-+]?\d*\.?\d*$`)
 
 type CSVMeta struct {
 	Meta
+	Files
 	Models map[string]string
 	Fields map[string][]field
 }
 
 
-func (csvmeta *CSVMeta) PopulateModel(name string, path string) {
-
+func (csvmeta *CSVMeta) PopulateMeta(path string) error {
+	filesMap, err := csvmeta.FilesFetch(path)
+	if err != nil {
+		return fmt.Errorf("Failed to  CSV file(s) from %s, Due to %s", path, err)
+	}
+	names := map[string][]string{}
+	for model, csvFile := range filesMap {
+		reader := csv.NewReader(bufio.NewReader(csvFile))
+		modelLower := strings.ToLower(model)
+		csvmeta.Models[modelLower] = model
+		var keys []string
+		if reader != nil {
+			for i := 1; 1 <= 5; i++ {
+				record, error := reader.Read()
+				for index, _ := range record {
+					if i == 1 {
+						names[record[index]] = []string{}
+						keys = record
+					} else {
+						names[keys[index]] = append(names[keys[index]], record[index])
+					}
+				}
+				if error == io.EOF {
+					break
+				} else if error != nil {
+					return error
+				}
+			}
+		}
+		for key, values := range names {
+			field := csvmeta.GetField(key, values)
+			csvmeta.Fields[modelLower] = append(csvmeta.Fields[modelLower], field)
+		}
+	}
+	return nil
 }
 
 /*
