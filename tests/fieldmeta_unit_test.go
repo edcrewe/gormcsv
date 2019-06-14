@@ -8,19 +8,11 @@ import (
 	"testing"
 )
 
-var meta importcsv.FieldMeta
-/*
-Setup first then run the tests
- */
-func TestMain(m *testing.M) {
-	meta = importcsv.FieldMeta{}
-	m.Run()
-}
-
 /*
 Test the FieldMeta.Convert function
  */
 func TestConvert(t *testing.T) {
+	meta := importcsv.FieldMeta{}
 
 	type TableTest struct {
 		input   string

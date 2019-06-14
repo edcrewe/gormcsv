@@ -7,19 +7,61 @@ import (
 	"testing"
 )
 
-var csvmeta importcsv.CSVMeta
+
 /*
-Setup first then run the tests
-*/
-func TestMain(m *testing.M) {
-	csvmeta = importcsv.CSVMeta{}
-	m.Run()
+Test CSVMeta.PopulateMeta
+ */
+func TestPopulateMeta(t *testing.T) {
+	csvmeta := importcsv.CSVMeta{}
+	csvmeta.PopulateMeta("fixtures")
+
+	type TableTest struct {
+		model string
+		field   string
+		typeStr string
+		pass    bool
+	}
+
+	var tableTests = []TableTest {
+		{"Country","name", "string", true},
+		{"Country", "code", "string", true},
+		{"Country","latitude", "float32", true},
+		{"Country","alias", "int16", false},
+		{"Item","DESCRIPTION", "string", true},
+		{"Item","QUANTITY", "int16", true},
+		{"TestTypes","wordcol", "string", true},
+		{"TestTypes","codecol", "int8", false},
+		{"TestTypes","textcol", "string", true},
+		{"TestTypes","numbercol", "float32", true},
+		{"TestTypes","intcol", "int16", true},
+		{"TestTypes","boolcol", "bool", true},
+		{"TestTypes","datecol", "date", true},
+	}
+
+	for _, test := range tableTests {
+		fields, ok := csvmeta.Fields[test.model]
+		if !ok {
+			t.Errorf("csvmeta.Fields is missing the model %s", test.model)
+			continue
+		}
+		for _, field := range fields {
+			if field.Name == test.field {
+				if (field.Type == test.typeStr && !test.pass || (field.Type != test.typeStr && test.pass)) {
+					t.Errorf("csvmeta.Fields[%s]-%s %s == %v is not %v", test.model, test.field, test.typeStr,
+						field.Type, test.pass)
+				}
+				break
+			}
+		}
+		t.Errorf("csvmeta.Fields[%s] is missing the field %s", test.model, test.field)
+	}
 }
 
 /*
 Test the CSVMeta.GetField function
 */
 func TestGetField(t *testing.T) {
+	csvmeta := importcsv.CSVMeta{}
 
 	type TableTest struct {
 		input   string

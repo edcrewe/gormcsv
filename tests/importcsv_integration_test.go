@@ -9,9 +9,8 @@ import (
 	"testing"
 )
 
-var meta importcsv.FieldMeta
 /*
-Setup first, remove the db, then run the tests
+Setup for all the tests in package tests, remove the db, then run the tests
 */
 func TestMain(m *testing.M) {
 	if _, err := os.Stat("test.db"); !os.IsNotExist(err) {
@@ -21,7 +20,7 @@ func TestMain(m *testing.M) {
 			return
 		}
 	}
-	m.Run()
+	os.Exit(m.Run())
 }
 
 /*
@@ -29,7 +28,7 @@ Integration test for importcsv
 Run the import of test models.go to sqlite and check data is in the db
 */
 func TestImportCSV(t *testing.T) {
-	meta = importcsv.FieldMeta{}
+	meta := importcsv.FieldMeta{}
 	factory := importcsv.MakeModels()
 	model := factory.New("country")
 	meta.Setmeta(model, "name,code,latitude,longtitude,alias")
