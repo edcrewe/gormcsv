@@ -62,8 +62,8 @@ func (mcsv *Files) FilesFetch (path string) (map[string]*os.File, error) {
 		}
 	}
 	for _, file := range files {
-		parts := strings.Split(file.Name(), "/")
-		parts = strings.Split(parts[len(parts) - 1], ".")
+		_, name := filepath.Split(file.Name())
+		parts := strings.Split(name, ".")
 		// name := strings.ToLower(parts[0])
 		filesMap[parts[0]] = file
 	}
