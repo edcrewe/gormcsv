@@ -50,8 +50,9 @@ type CSVMeta struct {
 func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 	filesMap, err := csvmeta.FilesFetch(path)
 	if err != nil {
-		return fmt.Errorf("Failed to  CSV file(s) from %s, Due to %s", path, err)
+		return fmt.Errorf("Failed to find CSV file(s) from %s, Due to %s", path, err)
 	}
+	fmt.Print(filesMap)
 	names := map[string][]string{}
 	for model, csvFile := range filesMap {
 		reader := csv.NewReader(bufio.NewReader(csvFile))

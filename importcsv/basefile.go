@@ -12,6 +12,14 @@ import (
 type Files struct {
 }
 
+func IsDirectory(path string) (bool, error) {
+	fileInfo, err := os.Stat(path)
+	if err != nil{
+		return false, err
+	}
+	return fileInfo.IsDir(), err
+}
+
 /*
 Return a map of lowercase filename without suffix vs file object from file or dir path
 */
@@ -21,20 +29,29 @@ func (mcsv *Files) FilesFetch (path string) (map[string]*os.File, error) {
 	}
 	filesMap := map[string]*os.File{}
 	files := []*os.File{}
+	dir, err := IsDirectory(path)
+	if err != nil {
+		return nil, err
+	}
 	f, err := os.Open(path)
-	if strings.HasSuffix(path, ".csv") {
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
+	}
+	if !dir {
 		files = append(files, f)
 	} else {
-		if err != nil {
-			return nil, err
-		}
 		fileInfos, err := f.Readdir(-1)
 		f.Close()
 		for _, fileInfo := range fileInfos {
-			csvFile, err := os.Open(filepath.Join(path, fileInfo.Name()))
+			filePath := filepath.Join(path, fileInfo.Name())
+			dir, err := IsDirectory(filePath)
+			if err != nil {
+				return nil, err
+			}
+			if dir {
+				continue
+			}
+			csvFile, err := os.Open(filePath)
 			if err != nil {
 				return nil, err
 			}
