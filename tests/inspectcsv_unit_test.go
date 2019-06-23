@@ -2,6 +2,7 @@ package tests
 
 
 import (
+	"fmt"
 	"github.com/edcrewe/gormcsv/importcsv"
 	"strings"
 	"testing"
@@ -13,8 +14,11 @@ Test CSVMeta.PopulateMeta
  */
 func TestPopulateMeta(t *testing.T) {
 	csvmeta := importcsv.CSVMeta{}
-	csvmeta.PopulateMeta("fixtures")
-
+	path := "fixtures"
+	err := csvmeta.PopulateMeta(path)
+	if err != nil {
+		fmt.Printf("Failed to populate meta for path %s due to:\n %s\n", path, err)
+	}
 	type TableTest struct {
 		model string
 		field   string
@@ -23,19 +27,19 @@ func TestPopulateMeta(t *testing.T) {
 	}
 
 	var tableTests = []TableTest {
-		{"Country","name", "string", true},
-		{"Country", "code", "string", true},
-		{"Country","latitude", "float32", true},
-		{"Country","alias", "int16", false},
-		{"Item","DESCRIPTION", "string", true},
-		{"Item","QUANTITY", "int16", true},
-		{"TestTypes","wordcol", "string", true},
-		{"TestTypes","codecol", "int8", false},
-		{"TestTypes","textcol", "string", true},
-		{"TestTypes","numbercol", "float32", true},
-		{"TestTypes","intcol", "int16", true},
-		{"TestTypes","boolcol", "bool", true},
-		{"TestTypes","datecol", "date", true},
+		{"country","name", "string", true},
+		{"country", "code", "string", true},
+		{"country","latitude", "float32", true},
+		{"country","alias", "int16", false},
+		{"item","DESCRIPTION", "string", true},
+		{"item","QUANTITY", "int16", true},
+		{"testtypes","wordcol", "string", true},
+		{"testtypes","codecol", "int8", false},
+		{"testtypes","textcol", "string", true},
+		{"testtypes","numbercol", "float32", true},
+		{"testtypes","intcol", "int16", true},
+		{"testtypes","boolcol", "bool", true},
+		{"testtypes","datecol", "date", true},
 	}
 
 	for _, test := range tableTests {
@@ -44,8 +48,11 @@ func TestPopulateMeta(t *testing.T) {
 			t.Errorf("csvmeta.Fields is missing the model %s", test.model)
 			continue
 		}
+		//fmt.Print(csvmeta.Fields[test.model])
+		found := false
 		for _, field := range fields {
 			if field.Name == test.field {
+				found = true
 				if (field.Type == test.typeStr && !test.pass || (field.Type != test.typeStr && test.pass)) {
 					t.Errorf("csvmeta.Fields[%s]-%s %s == %v is not %v", test.model, test.field, test.typeStr,
 						field.Type, test.pass)
@@ -53,7 +60,9 @@ func TestPopulateMeta(t *testing.T) {
 				break
 			}
 		}
-		t.Errorf("csvmeta.Fields[%s] is missing the field %s", test.model, test.field)
+		if !found {
+			t.Errorf("csvmeta.Fields[%s] is missing the field %s", test.model, test.field)
+		}
 	}
 }
 

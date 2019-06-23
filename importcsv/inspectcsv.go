@@ -49,31 +49,41 @@ type CSVMeta struct {
 
 func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 	filesMap, err := csvmeta.FilesFetch(path)
+	csvmeta.Models =  map[string]string{}
+	csvmeta.Fields =  map[string][]field{}
 	if err != nil {
 		return fmt.Errorf("Failed to find CSV file(s) from %s, Due to %s", path, err)
 	}
-	fmt.Print(filesMap)
-	names := map[string][]string{}
+	sample := 5
 	for model, csvFile := range filesMap {
+		names := map[string][]string{}
 		reader := csv.NewReader(bufio.NewReader(csvFile))
 		modelLower := strings.ToLower(model)
 		csvmeta.Models[modelLower] = model
 		var keys []string
 		if reader != nil {
-			for i := 1; 1 <= 5; i++ {
+			for i := 1; i <= sample; i++ {
 				record, error := reader.Read()
+				//fmt.Println(i)
+
 				for index, _ := range record {
 					if i == 1 {
-						names[record[index]] = []string{}
-						keys = record
+						keys = make([]string, len(record))
+						copy(keys, record)
+						names[keys[index]] = []string{}
 					} else {
-						names[keys[index]] = append(names[keys[index]], record[index])
+						if len(keys) > index {
+							field := keys[index]
+							if field != "" {
+								names[field] = append(names[field], record[index])
+							}
+						}
 					}
 				}
 				if error == io.EOF {
-					break
+					i = sample
 				} else if error != nil {
-					return error
+					return fmt.Errorf("Failed to inspect %s due to %s", model, error)
 				}
 			}
 		}
@@ -82,6 +92,7 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 			csvmeta.Fields[modelLower] = append(csvmeta.Fields[modelLower], field)
 		}
 	}
+	//fmt.Println(csvmeta.Fields["country"])
 	return nil
 }
 
