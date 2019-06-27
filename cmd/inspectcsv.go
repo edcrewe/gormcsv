@@ -16,7 +16,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/edcrewe/gormcsv/importcsv"
+//	"github.com/edcrewe/gormcsv/importcsv"
 	"github.com/spf13/cobra"
 )
 
@@ -28,8 +28,8 @@ var inspectcsvCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		Files, _ := cmd.Flags().GetString("files")
 		fmt.Printf("Inspect csv for %s\n to generate models.go", Files)
-		mcsv := importcsv.ModelCSV{}
-		mcsv.InspectCSV(Files)
+//		mcsv := importcsv.ModelCSV{}
+//		mcsv.InspectCSV(Files)
 	},
 }
 
