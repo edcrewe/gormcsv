@@ -59,7 +59,7 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	mcsv.CreateSchema(db, factory)
 	filesMap, err := mcsv.FilesFetch(filePath)
 	if err != nil {
-		fmt.Println("Failed to  CSV file(s) from %s, Due to %s", filePath, err)
+		fmt.Println("Failed to load CSV file(s) from %s, Due to %s", filePath, err)
 		return
 	}
 	var count int = 0
