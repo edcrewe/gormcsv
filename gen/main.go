@@ -16,10 +16,9 @@ type data struct {
 	Models map[string]string
 	Fields map[string][]field
 }
-.Models = map[string]string{}
 func main() {
 	var d data
-	d
+	d.Models = map[string]string{}
 	d.Models["country"] = "Country"
 	d.Models["unitofmeasure"] = "UnitOfMeasure"
 	d.Models["organisation"] = "Organisation"
