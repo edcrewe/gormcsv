@@ -1,0 +1,43 @@
+version: "1.0"
+stages:
+  - "clone"
+  - "build"
+  - "push"
+  - "unit"
+  - "integration"
+steps:
+  main_clone:
+    type: "git-clone"
+    description: "Cloning main repository..."
+    repo: "edcrewe/gormcsv"
+    revision: "${{CF_BRANCH}}"
+    stage: "clone"
+  build:
+    title: "Building Docker Image"
+    type: "build"
+    image_name: "gormcsv"
+    tag: "0.1.0"
+    dockerfile: "Dockerfile"
+    stage: "build"
+  push:
+    title: "Pushing image to cfcr"
+    type: "push"
+    image_name: "gormcsv"
+    registry: "cfcr"
+    candidate: "${{build}}"
+    tags:
+      - "0.1.0"
+      - "${{CF_REVISION}}"
+    stage: "push"
+  unit:
+    title: Running Unit tests
+    image: 'r.cfcr.io/edcrewe/gormcsv:0.1.0'
+    stage: unit 
+    commands:
+      - cd tests;go test -v
+  integration:
+    title: Running Integration tests
+    image: 'r.cfcr.io/edcrewe/gormcsv:0.1.0'
+    stage: integration 
+    commands:
+      - cd tests;go test --tags=integration -v
