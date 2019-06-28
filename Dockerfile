@@ -7,7 +7,8 @@ FROM golang:1.12-alpine AS build_base
 LABEL maintainer="Ed Crewe <edmundcrewe@gmail.com>"
 # Install all build dependencies
 
-# Add bash for debugging purposes
+# Install all build dependencies for modules
+# Add bash for running tests and debugging purposes
 RUN apk update \
     && apk add --virtual build-dependencies \
         build-base \
