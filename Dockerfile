@@ -31,5 +31,5 @@ RUN go mod download
 # Copy everything from the current directory to the PWD(Present Working Directory) inside the container
 COPY . .
 
-# Run the unit and integration tests
-CMD ["go test"]
+# Run the unit tests
+CMD ["go test -v"]
