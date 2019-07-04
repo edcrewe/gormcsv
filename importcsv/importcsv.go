@@ -1,7 +1,11 @@
+/* Given a set of files this looks up the matching named models and then
+parses the file to load data to the database via the models
+ */
 package importcsv
 
 import (
 	"bufio"
+  //  "https://github.com/gocarina/gocsv"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -67,6 +71,9 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	db.LogMode(false)
 	for fileName, csvFile := range filesMap {
 		reader := csv.NewReader(bufio.NewReader(csvFile))
+		reader.LazyQuotes = true
+		reader.TrimLeadingSpace = false
+		reader.TrailingComma = true
 		mcsv.fields = "name,code,latitude,longtitude,alias"
 		meta := FieldMeta{}
 		name, error := mcsv.getModel(fileName)

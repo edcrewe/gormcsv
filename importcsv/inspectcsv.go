@@ -1,26 +1,12 @@
 /* Estimate the field types from a CSV file and create a model for it
 Add method to try convert and narrow down to type then write meta
-Need csv read method from ModelCSV.ImportCSV too so maybe refactor OOP for that
-
-uint8       the set of all unsigned  8-bit integers (0 to 255)
-uint16      the set of all unsigned 16-bit integers (0 to 65535)
-uint32      the set of all unsigned 32-bit integers (0 to 4294967295)
-uint64      the set of all unsigned 64-bit integers (0 to 18446744073709551615)
-
-int8        the set of all signed  8-bit integers (-128 to 127)
-int16       the set of all signed 16-bit integers (-32768 to 32767)
-int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
-int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
-
-float32     the set of all IEEE-754 32-bit floating-point numbers
-float64     the set of all IEEE-754 64-bit floating-point numbers
-
 */
 package importcsv
 
 import (
-	"bufio"
-	"encoding/csv"
+	//"bufio"
+	trcsv "github.com/trimmer-io/go-csv"
+	// "encoding/csv"
 	"fmt"
 	"io"
 	"regexp"
@@ -46,6 +32,11 @@ type CSVMeta struct {
 	Fields map[string][]field
 }
 
+type GenericRecord struct {
+	Record map[string]string "csv:,any"
+}
+
+type GenericCSV []GenericRecord
 
 func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 	filesMap, err := csvmeta.FilesFetch(path)
@@ -54,17 +45,29 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to find CSV file(s) from %s, Due to %s", path, err)
 	}
-	sample := 5
+	sample := 10
 	for model, csvFile := range filesMap {
 		names := map[string][]string{}
-		reader := csv.NewReader(bufio.NewReader(csvFile))
+		// reader := csv.NewReader(bufio.NewReader(csvFile))
+		dec := trcsv.NewDecoder(io.Reader(csvFile))
+		dec.Header(true)
+		dec.SkipUnknown(false)
+		//c := make(GenericCSV, 0)
+		//if error := dec.Decode(&c); error != nil {
+		//	return error
+		//}
 		modelLower := strings.ToLower(model)
 		csvmeta.Models[modelLower] = model
-		var keys []string
-		if reader != nil {
+		//var keys []string
+		dec.ReadLine()
+		if dec != nil {
 			for i := 1; i <= sample; i++ {
-				record, error := reader.Read()
-				//fmt.Println(i)
+				//record, error := reader.Read()
+				fmt.Println(i)
+				record, _ := dec.ReadLine()
+				//record := c[i]
+				fmt.Println(record)
+				/*
 
 				for index, _ := range record {
 					if i == 1 {
@@ -84,7 +87,7 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 					i = sample
 				} else if error != nil {
 					return fmt.Errorf("Failed to inspect %s due to %s", model, error)
-				}
+				} */
 			}
 		}
 		for key, values := range names {
