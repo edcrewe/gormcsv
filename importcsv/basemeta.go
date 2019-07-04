@@ -45,7 +45,7 @@ func (base *Meta) Convert(value string, to string) (interface{}, error) {
 		return strconv.ParseBool(value)
 	case "date":
 		var err error
-		layouts := []string{"2006-01-02T15:04:05.000Z", "2006-01-02T15:04:05", "28/02/2003"}
+		layouts := []string{"2006-01-02T15:04:05.000Z", "2006-01-02T15:04:05", "28/02/2003", "2002-01-23"}
 		var date time.Time
 		for _, layout := range layouts {
 			date, err = time.Parse(layout, value)

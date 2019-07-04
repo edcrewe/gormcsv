@@ -31,16 +31,15 @@ func TestPopulateMeta(t *testing.T) {
 		{"country", "code", "string", true},
 		{"country","latitude", "float32", true},
 		{"country","alias", "int16", false},
-/*		{"item","DESCRIPTION", "string", true},
-		{"item","QUANTITY", "int16", true},
+//		{"item","DESCRIPTION", "string", true},
+//		{"item","QUANTITY", "int16", true},
 		{"testtypes","wordcol", "string", true},
 		{"testtypes","codecol", "int8", false},
 		{"testtypes","textcol", "string", true},
 		{"testtypes","numbercol", "float32", true},
 		{"testtypes","intcol", "int16", true},
 		{"testtypes","boolcol", "bool", true},
-		{"testtypes","datecol", "date", true},
-*/
+//		{"testtypes","datecol", "date", true},
 	}
 
 	for _, test := range tableTests {

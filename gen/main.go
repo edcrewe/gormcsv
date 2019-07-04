@@ -16,6 +16,7 @@ type data struct {
 	Models map[string]string
 	Fields map[string][]field
 }
+
 func main() {
 	var d data
 	d.Models = map[string]string{}
