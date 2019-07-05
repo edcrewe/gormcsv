@@ -186,7 +186,7 @@ func MakeModels() ModelFactory {
 }
 
 {{range $k, $v := .Fields}}
-// TODO - get $k value from .Models -  $name := (index $.Models $k).Val
+//  TODO - get $k value from .Models -  $name := (index $.Models $k).Val
 type {{$k}} struct {
    {{ range $f := $v }}{{$f.Name}} {{$f.Type}} {{$f.Tag}}
    {{end}}
