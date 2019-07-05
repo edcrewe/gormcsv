@@ -53,11 +53,11 @@ Use csvmeta to generate each model for models.go
  */
 func (csvmeta *CSVMeta) Generate() error {
 	t := template.Must(template.New("models").Parse(modelsTemplate))
-	f, err := os.Create("importcsv/models.go")
+	f, err := os.Create("importcsv/models_generated.go")
 	if err != nil {
 		return err
 	} else {
-		fmt.Println("Generated importcsv/models.go")
+		fmt.Println("Generated importcsv/models_generated.go")
 	}
 	t.Execute(f, csvmeta)
 	return nil
@@ -162,8 +162,7 @@ func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field{
 	return f
 }
 
-var modelsTemplate = `
-// Models for loading CSV data  - these can be generated
+var modelsTemplate = `// Models for loading CSV data  - these can be generated
 package importcsv
 
 import (
@@ -181,17 +180,15 @@ type ModelFactory struct {
 Make a single instance of the model factory for use in importcsv
  */
 func MakeModels() ModelFactory {
-	factory := ModelFactory{}
-	{{range $k, $v := .Models}}
-    factory.models = append(factory.models, "{{$k}}")
-    {{end}}
+	factory := ModelFactory{}{{range $k, $v := .Models}}
+    factory.models = append(factory.models, "{{$k}}"){{end}}
 	return factory
 }
 
 {{range $k, $v := .Fields}}
-struct {{$k}} {
-   {{ range $f := $v }}
-   {{$f.Name}} {{$f.Type}} {{$f.Tag}}
+// TODO - get $k value from .Models -  $name := (index $.Models $k).Val
+type {{$k}} struct {
+   {{ range $f := $v }}{{$f.Name}} {{$f.Type}} {{$f.Tag}}
    {{end}}
 }
 {{end}}
