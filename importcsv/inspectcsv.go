@@ -23,8 +23,10 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
+	"text/template"
 )
 
 type field struct {
@@ -46,7 +48,25 @@ type CSVMeta struct {
 	Fields map[string][]field
 }
 
+/*
+Use csvmeta to generate each model for models.go
+ */
+func (csvmeta *CSVMeta) Generate() error {
+	t := template.Must(template.New("models").Parse(modelsTemplate))
+	f, err := os.Create("importcsv/models.go")
+	if err != nil {
+		return err
+	} else {
+		fmt.Println("Generated importcsv/models.go")
+	}
+	t.Execute(f, csvmeta)
+	return nil
+}
 
+/*
+Read a sample set of data from each CSV file and determine the fields and field types
+Load that metadata to csvmeta struct Models and Fields
+ */
 func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 	filesMap, err := csvmeta.FilesFetch(path)
 	csvmeta.Models =  map[string]string{}
@@ -141,3 +161,49 @@ func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field{
 	f.Type = typeStr
 	return f
 }
+
+var modelsTemplate = `
+// Models for loading CSV data  - these can be generated
+package importcsv
+
+import (
+	"github.com/jinzhu/gorm"
+	"strings"
+	"time"
+)
+
+// GORM Model factory
+type ModelFactory struct {
+	models []string
+}
+
+/*
+Make a single instance of the model factory for use in importcsv
+ */
+func MakeModels() ModelFactory {
+	factory := ModelFactory{}
+	{{range $k, $v := .Models}}
+    factory.models = append(factory.models, "{{$k}}")
+    {{end}}
+	return factory
+}
+
+{{range $k, $v := .Fields}}
+struct {{$k}} {
+   {{ range $f := $v }}
+   {{$f.Name}} {{$f.Type}} {{$f.Tag}}
+   {{end}}
+}
+{{end}}
+
+func (f ModelFactory) New(name string) interface{} {
+	name = strings.ToLower(name)
+	switch name {
+	{{range $k, $v := .Models}}
+	case "{{$k}}":
+		return &{{$v}}()
+	{{end}}
+	}
+	return nil
+}
+`
