@@ -2,7 +2,7 @@
 
 help:
 	@echo "build - build docker  image"
-	@echo "run - start the flask service ready to schedule helm jobs"
+	@echo "run - build gormcsv and run demo import of csv file"
 	@echo "test - unit and integration tests"
 	@echo "clean - remove all build, test, coverage and Python artifacts"
 
@@ -15,7 +15,8 @@ clean:
 	docker volume prune -f
 
 run: clean 
-	docker run -d --name gormcsv gormcsv:0.1.0 bash -c "go build" 
+	docker run -d --name gormcsv gormcsv:0.1.0 bash -c "go build; gormcsv importcsv -f tests/fixtures/Country.csv"
+	docker logs -f gormcsv
 
 test: clean
 	docker run -d --name gormcsv gormcsv:0.1.0 bash -c "cd tests;go test;go test --tags=integration"
