@@ -53,11 +53,11 @@ Use csvmeta to generate each model for models.go
  */
 func (csvmeta *CSVMeta) Generate() error {
 	t := template.Must(template.New("models").Parse(modelsTemplate))
-	f, err := os.Create("importcsv/models_generated.go")
+	f, err := os.Create("importcsv/models.go")
 	if err != nil {
 		return err
 	} else {
-		fmt.Println("Generated importcsv/models_generated.go")
+		fmt.Println("Generated importcsv/models.go")
 	}
 	t.Execute(f, csvmeta)
 	return nil
@@ -109,7 +109,7 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 		}
 		for key, values := range names {
 			field := csvmeta.GetField(key, values)
-			csvmeta.Fields[modelLower] = append(csvmeta.Fields[modelLower], field)
+			csvmeta.Fields[model] = append(csvmeta.Fields[model], field)
 		}
 	}
 	//fmt.Println(csvmeta.Fields["country"])
@@ -168,7 +168,7 @@ package importcsv
 import (
 	"github.com/jinzhu/gorm"
 	"strings"
-	"time"
+	// "time"
 )
 
 // GORM Model factory
@@ -186,8 +186,9 @@ func MakeModels() ModelFactory {
 }
 
 {{range $k, $v := .Fields}}
-//  TODO - get $k value from .Models -  $name := (index $.Models $k).Val
-type {{$k}} struct {
+//  TODO - get $k value from .Models - $name := (index $.Models $k).Val
+type {{ $k }} struct {
+    gorm.Model
    {{ range $f := $v }}{{$f.Name}} {{$f.Type}} {{$f.Tag}}
    {{end}}
 }
@@ -198,7 +199,7 @@ func (f ModelFactory) New(name string) interface{} {
 	switch name {
 	{{range $k, $v := .Models}}
 	case "{{$k}}":
-		return &{{$v}}()
+		return &{{$v}}{}
 	{{end}}
 	}
 	return nil

@@ -102,16 +102,16 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 				count += 1
 			}
 		}
-	}
-	db.LogMode(true)
-	fmt.Printf("Imported %d rows to Country\n", count)
-	if duplicates > 0 {
-		fmt.Printf("Skipped %d duplicate rows\n", duplicates)
-	}
-	if errorlist != nil {
-		fmt.Printf("Failed import for %d rows due to errors:\n", len(errorlist))
-		for _, error := range errorlist {
-			fmt.Println(error)
+		db.LogMode(true)
+		fmt.Printf("Imported %d rows to %s\n", count, name)
+		if duplicates > 0 {
+			fmt.Printf("Skipped %d duplicate rows\n", duplicates)
+		}
+		if errorlist != nil {
+			fmt.Printf("Failed import for %d rows due to errors:\n", len(errorlist))
+			for _, error := range errorlist {
+				fmt.Println(error)
+			}
 		}
 	}
 	db.Close()
