@@ -15,7 +15,7 @@ clean:
 	docker volume prune -f
 
 run: clean 
-	docker run -d --name gormcsv gormcsv:0.1.0 bash -c "go build; gormcsv importcsv -f tests/fixtures/Country.csv"
+	docker run -d --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.1.0 bash -c "go build;chmod755 gormcsv;./gormcsv importcsv -f tests/fixtures/Country.csv"
 	docker logs -f gormcsv
 
 test: clean
