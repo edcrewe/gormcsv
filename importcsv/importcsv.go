@@ -66,10 +66,16 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	var duplicates int = 0
 	db.LogMode(false)
 	for fileName, csvFile := range filesMap {
+		csvmeta := CSVMeta{}
+		csvmeta.PopulateMeta(fileName)
 		reader := csv.NewReader(bufio.NewReader(csvFile))
-		mcsv.fields = "name,code,latitude,longtitude,alias"
 		meta := FieldMeta{}
 		name, error := mcsv.getModel(fileName)
+		fieldList := []string{}
+		for field, _ := range csvmeta.Fields {
+			fieldList = append(fieldList, field)
+		}
+		mcsv.fields = strings.Join(fieldList, ",")
 		if error != nil {
 			fmt.Println(error)
 			return
