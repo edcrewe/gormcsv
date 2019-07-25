@@ -23,30 +23,18 @@ func MakeModels() ModelFactory {
 }
 
 
-//  TODO - get $k value from .Models - $name := (index $.Models $k).Val
 type Country struct {
     gorm.Model
-   code string 
-   have int8 
-   our int8 
-   that int8 
-   dont int8 
-   in int8 
-   name string 
-   longitude int8 
-   alias string 
-   some int8 
-   other int8 
-   data int8 
-   latitude float32 
-   we int8 
-   model int8 
+	Code       string `gorm:"primary_key"`
+	Name       string
+	Latitude   float64
+	Longtitude float64
+	Alias      string
    
 }
 
-//  TODO - get $k value from .Models - $name := (index $.Models $k).Val
 type TestTypes struct {
-    gorm.Model
+   gorm.Model
    datecol string 
    wordcol string 
    codecol string 
