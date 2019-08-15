@@ -13,3 +13,20 @@ The purpose of gormcsv is to cater for data population / migration or data test 
 Either for GORM based applications, or simply to (build a schema and) populate a database based on CSV files.
 
 Data is loadable to any of the GORM supported databases: mysql, postgres, sqlite, mssql
+
+Model generation is a separate step that can be skipped for importing into existing Tables.
+
+Usage:
+  gormcsv [command]
+
+Available Commands:
+  help        Help about any command
+  importcsv   Populates one or more tables from CSV file(s)
+  inspectcsv  Create models from CSV files
+
+Flags:
+  -f, --files string   CSV file or folder of files
+  -h, --help           help for gormcsv
+  -t, --toggle         Help message for toggle
+
+Use "gormcsv [command] --help" for more information about a command.
