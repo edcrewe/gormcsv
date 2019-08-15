@@ -16,7 +16,7 @@ Data is loadable to any of the GORM supported databases: mysql, postgres, sqlite
 
 Model generation is a separate step that can be skipped for importing into existing Tables.
 
-Usage:
+# Usage:
   gormcsv [command]
 
 Available Commands:
@@ -30,3 +30,11 @@ Flags:
   -t, --toggle         Help message for toggle
 
 Use "gormcsv [command] --help" for more information about a command.
+
+# Tests
+
+Unit:
+  cd tests & go test -v
+  
+Integration: 
+  cd tests &  go test -v --args i
