@@ -39,7 +39,6 @@ func (mcsv *ModelCSV) CreateSchema(db *gorm.DB, factory ModelFactory) {
 }
 
 func (mcsv *ModelCSV) getModel(name string) (string, error) {
-	name = strings.ToLower(name)
 	found := MakeModels().New(name)
 	if found != nil {
 		return name, nil
@@ -74,12 +73,11 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 		name, error := mcsv.getModel(fileName)
 		fieldList := []string{}
 		for _, field := range csvmeta.Fields[name] {
-			if (field.Name != "model") {
+			if (field.Name != "Model") {
 				fieldList = append(fieldList, field.Name)
 			}
 		}
 		mcsv.fields = strings.Join(fieldList, ",")
-		// fmt.Println(fieldList)
 		if error != nil {
 			fmt.Println(error)
 			return

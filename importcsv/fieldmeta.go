@@ -64,14 +64,16 @@ func (meta *FieldMeta) RecordToModel(model interface{}, record []string) (interf
 	mData := meta.getMap(record)
 	structValue := reflect.ValueOf(model).Elem()
 	for name, value := range mData {
-		structFieldValue := structValue.FieldByName(name)
-		fieldType := structFieldValue.Type()
-		converted, error := meta.Convert(value,  fieldType.Name())
-		if error != nil {
-			return nil, error
+		structFieldValue := structValue.FieldByName(strings.ToTitle(strings.ToLower(name)))
+		if structFieldValue.IsValid() {
+			fieldType := structFieldValue.Type()
+			converted, error := meta.Convert(value, fieldType.Name())
+			if error != nil {
+				return nil, error
+			}
+			val := reflect.ValueOf(converted)
+			structFieldValue.Set(val.Convert(fieldType))
 		}
-		val := reflect.ValueOf(converted)
-		structFieldValue.Set(val.Convert(fieldType))
 	}
 	return model, nil
 }

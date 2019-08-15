@@ -45,7 +45,7 @@ func TestImportCountry(t *testing.T) {
 /*
 Integration test for importcsv
 Run the import of test models.go to sqlite and check data is in the db
-
+*/
 func TestImportTestTypes(t *testing.T) {
 	mcsv := importcsv.ModelCSV{}
 	db := mcsv.ConnectDB()
@@ -58,5 +58,7 @@ func TestImportTestTypes(t *testing.T) {
 	if count < 6 {
 		t.Errorf("Total count: %d rows imported. Expected 7", count)
 	}
+	//model := db.Model(&importcsv.TestTypes{}).Where("codecol = ?", "RF024")
+
+	//fmt.Println(model.Codecol)
 }
-*/
