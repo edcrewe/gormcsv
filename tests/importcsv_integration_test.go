@@ -1,4 +1,4 @@
-// +build integration
+// +build integration i
 
 package tests
 
@@ -27,15 +27,9 @@ func TestMain(m *testing.M) {
 Integration test for importcsv
 Run the import of test models.go to sqlite and check data is in the db
 */
-func TestImportCSV(t *testing.T) {
-	meta := importcsv.FieldMeta{}
-	factory := importcsv.MakeModels()
-	model := factory.New("country")
-	meta.Setmeta(model, "name,code,latitude,longtitude,alias")
+func TestImportCountry(t *testing.T) {
 	mcsv := importcsv.ModelCSV{}
 	db := mcsv.ConnectDB()
-	mcsv.CreateSchema(db, factory)
-
 	// Run import
 	mcsv.ImportCSV("fixtures/Country.csv")
 	// Test database is populated
@@ -47,3 +41,21 @@ func TestImportCSV(t *testing.T) {
 	}
 }
 
+
+/*
+Integration test for importcsv
+Run the import of test models.go to sqlite and check data is in the db
+*/
+func TestImportTestTypes(t *testing.T) {
+	mcsv := importcsv.ModelCSV{}
+	db := mcsv.ConnectDB()
+	// Run import
+	mcsv.ImportCSV("fixtures/TestTypes.csv")
+	// Test database is populated
+	var count int
+	db.Table("test_types").Count(&count)
+	//count := checkCount(rows)
+	if count < 6 {
+		t.Errorf("Total count: %d rows imported. Expected 7", count)
+	}
+}

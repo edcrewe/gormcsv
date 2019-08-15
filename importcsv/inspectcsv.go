@@ -19,7 +19,6 @@ float64     the set of all IEEE-754 64-bit floating-point numbers
 package importcsv
 
 import (
-	"time"
 	"bufio"
 	"encoding/csv"
 	"fmt"
@@ -28,6 +27,7 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 )
 
 type field struct {

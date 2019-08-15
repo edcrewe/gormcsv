@@ -1,3 +1,5 @@
+// +build unit u
+
 // Unit tests for fieldmeta - importcsv reflection subpackage
 package tests
 
