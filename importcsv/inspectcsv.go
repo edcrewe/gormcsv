@@ -19,6 +19,7 @@ float64     the set of all IEEE-754 64-bit floating-point numbers
 package importcsv
 
 import (
+	"time"
 	"bufio"
 	"encoding/csv"
 	"fmt"
@@ -42,6 +43,7 @@ var reNumber = regexp.MustCompile(`^[-+]?\d*\.?\d*$`)
 
 
 type CSVMeta struct {
+	Now time.Time
 	Meta
 	Files
 	Models map[string]string
@@ -68,6 +70,7 @@ Read a sample set of data from each CSV file and determine the fields and field 
 Load that metadata to csvmeta struct Models and Fields
  */
 func (csvmeta *CSVMeta) PopulateMeta(path string) error {
+	csvmeta.Now = time.Now()
 	filesMap, err := csvmeta.FilesFetch(path)
 	csvmeta.Models =  map[string]string{}
 	csvmeta.Fields =  map[string][]field{}
@@ -162,7 +165,7 @@ func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field{
 	return f
 }
 
-var modelsTemplate = `// Models for loading CSV data  - these can be generated
+var modelsTemplate = `// Models for loading CSV data  - generated {{ .Now }}
 package importcsv
 
 import (
