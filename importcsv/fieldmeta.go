@@ -22,12 +22,17 @@ type FieldMeta struct {
 */
 func (meta *FieldMeta) Setmeta(model interface{}, csvfields string) {
 	meta.fieldcols = make(map[string]int)
+	if csvfields == "" {
+		fmt.Println("Mapping failed because no csvfields were supplied")
+		return
+	}
 	// meta.fieldtypes = make(map[string]reflect.Type)
 	csv := strings.Split(csvfields, ",")
 	structValue := reflect.ValueOf(model).Elem()
 	for i := 0; i < structValue.NumField(); i++ {
 		typeField := structValue.Type().Field(i)
-		field := strings.ToLower(typeField.Name)
+		// Need uppercase first letter for public attribute
+		field := strings.Title(strings.ToLower(typeField.Name))
 		for j := range csv {
 			if csv[j] == field {
 				meta.fieldcols[typeField.Name] = j

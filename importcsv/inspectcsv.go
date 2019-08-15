@@ -93,10 +93,10 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 					if i == 1 {
 						keys = make([]string, len(record))
 						copy(keys, record)
-						names[keys[index]] = []string{}
+						names[strings.Title(strings.ToLower(keys[index]))] = []string{}
 					} else {
 						if len(keys) > index {
-							field := keys[index]
+							field := strings.Title(strings.ToLower(keys[index]))
 							if field != "" {
 								names[field] = append(names[field], record[index])
 							}
@@ -115,7 +115,7 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 			csvmeta.Fields[model] = append(csvmeta.Fields[model], field)
 		}
 	}
-	//fmt.Println(csvmeta.Fields["country"])
+	fmt.Println(csvmeta.Fields["TestTypes"])
 	return nil
 }
 

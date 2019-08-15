@@ -36,6 +36,7 @@ func (base *Meta) Convert(value string, to string) (interface{}, error) {
 	}
 	switch to {
 	case "float":
+		if value == "" {return 0, nil}
 		return strconv.ParseFloat(value, bits)
 	case "uint":
 		return strconv.ParseUint(value, 10, bits)

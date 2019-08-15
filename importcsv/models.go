@@ -1,4 +1,4 @@
-// Models for loading CSV data  - generated 2019-08-15 11:15:06.552148 +0100 BST m=+0.002498526
+// Models for loading CSV data  - generated 2019-08-15 15:14:59.205253 +0100 BST m=+0.002567647
 package importcsv
 
 import (
@@ -25,34 +25,34 @@ func MakeModels() ModelFactory {
 
 type Country struct {
    gorm.Model
-   code string 
-   longitude int8 
-   we int8 
-   name string 
-   alias string 
-   some int8 
-   other int8 
-   have int8 
-   our int8 
-   latitude float32 
-   data int8 
-   that int8 
-   dont int8 
-   in int8 
-   model int8 
+   Code string 
+   Latitude float32 
+   We int8 
+   Name string 
+   Other int8 
+   Data int8 
+   Have int8 
+   That int8 
+   Dont int8 
+   In int8 
+   Our int8 
+   Model int8 
+   Longitude int8 
+   Alias string 
+   Some int8 
    
 }
 
 type TestTypes struct {
    gorm.Model
-   boolcol bool 
-   datecol string 
-   wordcol string 
-   codecol string 
-   textcol string 
-   bigtextcol string 
-   numbercol float32 
-   intcol int16 
+   Bigtextcol string 
+   Numbercol float32 
+   Intcol int16 
+   Boolcol bool 
+   Datecol string 
+   Wordcol string 
+   Codecol string 
+   Textcol string 
    
 }
 

@@ -73,7 +73,7 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 		meta := FieldMeta{}
 		name, error := mcsv.getModel(fileName)
 		fieldList := []string{}
-		for _, field := range csvmeta.Fields[strings.Title(name)] {
+		for _, field := range csvmeta.Fields[name] {
 			if (field.Name != "model") {
 				fieldList = append(fieldList, field.Name)
 			}
