@@ -88,16 +88,18 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 			for i := 1; i <= sample; i++ {
 				record, error := reader.Read()
 				//fmt.Println(i)
-
 				for index, _ := range record {
 					if i == 1 {
 						keys = make([]string, len(record))
 						copy(keys, record)
-						names[strings.Title(strings.ToLower(keys[index]))] = []string{}
+						field := strings.Title(strings.ToLower(keys[index]))
+						if field != "" && field != "Model" {
+							names[field] = []string{}
+						}
 					} else {
 						if len(keys) > index {
 							field := strings.Title(strings.ToLower(keys[index]))
-							if field != "" {
+							if field != "" && field != "Model" {
 								names[field] = append(names[field], record[index])
 							}
 						}
