@@ -27,18 +27,18 @@ func TestPopulateMeta(t *testing.T) {
 	}
 
 	var tableTests = []TableTest {
-		{"country","name", "string", true},
-		{"country", "code", "string", true},
-		{"country","latitude", "float32", true},
-		{"country","alias", "int16", false},
+		{"Country","name", "string", true},
+		{"Country", "code", "string", true},
+		{"Country","latitude", "float32", true},
+		{"Country","alias", "int16", false},
 //		{"item","DESCRIPTION", "string", true},
 //		{"item","QUANTITY", "int16", true},
-		{"testtypes","wordcol", "string", true},
-		{"testtypes","codecol", "int8", false},
-		{"testtypes","textcol", "string", true},
-		{"testtypes","numbercol", "float32", true},
-		{"testtypes","intcol", "int16", true},
-		{"testtypes","boolcol", "bool", true},
+		{"TestTypes","wordcol", "string", true},
+		{"TestTypes","codecol", "int8", false},
+		{"TestTypes","textcol", "string", true},
+		{"TestTypes","numbercol", "float32", true},
+		{"TestTypes","intcol", "int16", true},
+		{"TestTypes","boolcol", "bool", true},
 //		{"testtypes","datecol", "date", true},
 	}
 
