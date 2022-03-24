@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"os"
 
-	homedir "github.com/mitchellh/go-homedir"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -30,10 +30,7 @@ var Files string
 var rootCmd = &cobra.Command{
 	Use:   "gormcsv",
 	Short: "Generate Models for GORM based on CSV files and import the data from them",
-	Long: `Model generation is a separate step that can be skipped for importing into existing Tables.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
+	Long:  `Model generation is a separate step that can be skipped for importing into existing Tables.`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -48,12 +45,6 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.PersistentFlags().StringVarP(&Files, "files", "f", "", "CSV file or folder of files")
 	viper.BindPFlag("files", rootCmd.PersistentFlags().Lookup("files"))

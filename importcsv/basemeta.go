@@ -2,10 +2,10 @@
 package importcsv
 
 import (
-"fmt"
-"strconv"
-"strings"
-"time"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Embedded stuct to hang the convert method on
@@ -23,7 +23,7 @@ func (base *Meta) Convert(value string, to string) (interface{}, error) {
 	var err error
 	prefixes := []string{"float", "uint", "int"}
 	for _, prefix := range prefixes {
-		if strings.HasPrefix(to, prefix){
+		if strings.HasPrefix(to, prefix) {
 			bitstr := to[len(prefix):]
 			if bitstr != "" {
 				bits, err = strconv.Atoi(bitstr)
@@ -36,7 +36,9 @@ func (base *Meta) Convert(value string, to string) (interface{}, error) {
 	}
 	switch to {
 	case "float":
-		if value == "" {return 0, nil}
+		if value == "" {
+			return 0, nil
+		}
 		return strconv.ParseFloat(value, bits)
 	case "uint":
 		return strconv.ParseUint(value, 10, bits)

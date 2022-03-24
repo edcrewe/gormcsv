@@ -8,22 +8,21 @@ import (
 	"strings"
 )
 
-// Embedded stuct to hang the FilesFetch method on
+// Files embedded stuct to hang the FilesFetch method on
 type Files struct {
 }
 
+// IsDirectory checks if path is a directory
 func IsDirectory(path string) (bool, error) {
 	fileInfo, err := os.Stat(path)
-	if err != nil{
+	if err != nil {
 		return false, err
 	}
 	return fileInfo.IsDir(), err
 }
 
-/*
-Return a map of lowercase filename without suffix vs file object from file or dir path
-*/
-func (mcsv *Files) FilesFetch (path string) (map[string]*os.File, error) {
+// FilesFetch return a map of lowercase filename without suffix vs file object from file or dir path
+func (mcsv *Files) FilesFetch(path string) (map[string]*os.File, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil, fmt.Errorf("The fixture file %s does not exist", path)
 	}

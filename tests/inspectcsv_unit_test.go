@@ -1,19 +1,17 @@
+//go:build unit || u
 // +build unit u
 
 package tests
 
-
 import (
 	"fmt"
-	"github.com/edcrewe/gormcsv/importcsv"
 	"strings"
 	"testing"
+
+	"github.com/edcrewe/gormcsv/importcsv"
 )
 
-
-/*
-Test CSVMeta.PopulateMeta
- */
+// TestPopulateMeta test CSVMeta.PopulateMeta
 func TestPopulateMeta(t *testing.T) {
 	csvmeta := importcsv.CSVMeta{}
 	path := "fixtures"
@@ -22,26 +20,26 @@ func TestPopulateMeta(t *testing.T) {
 		fmt.Printf("Failed to populate meta for path %s due to:\n %s\n", path, err)
 	}
 	type TableTest struct {
-		model string
+		model   string
 		field   string
 		typeStr string
 		pass    bool
 	}
 
-	var tableTests = []TableTest {
-		{"Country","name", "string", true},
-		{"Country", "code", "string", true},
-		{"Country","latitude", "float32", true},
-		{"Country","alias", "int16", false},
-//		{"item","DESCRIPTION", "string", true},
-//		{"item","QUANTITY", "int16", true},
-		{"TestTypes","wordcol", "string", true},
-		{"TestTypes","codecol", "int8", false},
-		{"TestTypes","textcol", "string", true},
-		{"TestTypes","numbercol", "float32", true},
-		{"TestTypes","intcol", "int16", true},
-		{"TestTypes","boolcol", "bool", true},
-//		{"testtypes","datecol", "date", true},
+	var tableTests = []TableTest{
+		{"Country", "Name", "string", true},
+		{"Country", "Code", "string", true},
+		{"Country", "Latitude", "float32", true},
+		{"Country", "Alias", "int16", false},
+		//		{"item","DESCRIPTION", "string", true},
+		//		{"item","QUANTITY", "int16", true},
+		{"TestTypes", "Wordcol", "string", true},
+		{"TestTypes", "Codecol", "int8", false},
+		{"TestTypes", "Textcol", "string", true},
+		{"TestTypes", "Numbercol", "float32", true},
+		{"TestTypes", "Intcol", "int16", true},
+		{"TestTypes", "Boolcol", "bool", true},
+		//		{"testtypes","datecol", "date", true},
 	}
 
 	for _, test := range tableTests {
@@ -50,12 +48,12 @@ func TestPopulateMeta(t *testing.T) {
 			t.Errorf("csvmeta.Fields is missing the model %s", test.model)
 			continue
 		}
-		//fmt.Print(csvmeta.Fields[test.model])
+		// fmt.Print(csvmeta.Fields[test.model])
 		found := false
 		for _, field := range fields {
 			if field.Name == test.field {
 				found = true
-				if (field.Type == test.typeStr && !test.pass || (field.Type != test.typeStr && test.pass)) {
+				if field.Type == test.typeStr && !test.pass || (field.Type != test.typeStr && test.pass) {
 					t.Errorf("csvmeta.Fields[%s]-%s %s == %v is not %v", test.model, test.field, test.typeStr,
 						field.Type, test.pass)
 				}
@@ -68,9 +66,7 @@ func TestPopulateMeta(t *testing.T) {
 	}
 }
 
-/*
-Test the CSVMeta.GetField function
-*/
+// TestGetField test the CSVMeta.GetField function
 func TestGetField(t *testing.T) {
 	csvmeta := importcsv.CSVMeta{}
 
@@ -80,7 +76,7 @@ func TestGetField(t *testing.T) {
 		pass    bool
 	}
 
-	var tableTests = []TableTest {
+	var tableTests = []TableTest{
 		{"23,24,55", "int8", true},
 		{"21474836423412345,234567,23423423", "int64", true},
 		{"-123,24,+12", "uint16", true},
@@ -97,10 +93,9 @@ func TestGetField(t *testing.T) {
 		input := strings.Split(test.input, ",")
 		output := csvmeta.GetField("test", input)
 		//fmt.Println(fmt.Sprint(output))
-		if (output.Type == test.typeStr && !test.pass || (output.Type != test.typeStr && test.pass)) {
+		if output.Type == test.typeStr && !test.pass || (output.Type != test.typeStr && test.pass) {
 			t.Errorf("csvmeta.GetField (%s) %s == %v is not %v", test.input, test.typeStr,
 				output.Type, test.pass)
 		}
 	}
 }
-

@@ -5,11 +5,12 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"io"
 	"log"
 	"strings"
+
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
 type ModelCSV struct {
@@ -19,7 +20,7 @@ type ModelCSV struct {
 
 /*
 Connect to the Database
- */
+*/
 func (mcsv *ModelCSV) ConnectDB() *gorm.DB {
 	db, err := gorm.Open("sqlite3", "test.db")
 	if err != nil {
@@ -30,7 +31,7 @@ func (mcsv *ModelCSV) ConnectDB() *gorm.DB {
 
 /*
 Create the schema in the db
- */
+*/
 func (mcsv *ModelCSV) CreateSchema(db *gorm.DB, factory ModelFactory) {
 	for _, name := range factory.models {
 		model := factory.New(name)
@@ -47,10 +48,9 @@ func (mcsv *ModelCSV) getModel(name string) (string, error) {
 	}
 }
 
-
 /*
 Main command method for importcsv
- */
+*/
 func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	errorlist := []error{}
 	db := mcsv.ConnectDB()
@@ -73,7 +73,7 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 		name, error := mcsv.getModel(fileName)
 		fieldList := []string{}
 		for _, field := range csvmeta.Fields[name] {
-			if (field.Name != "Model") {
+			if field.Name != "Model" {
 				fieldList = append(fieldList, field.Name)
 			}
 		}
@@ -83,7 +83,7 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 			return
 		}
 		model := factory.New(name)
-		meta.Setmeta(model, mcsv.fields)
+		meta.SetMeta(model, mcsv.fields)
 		// Drop log errors and handle as aggregate msgs
 		for {
 			record, error := reader.Read()

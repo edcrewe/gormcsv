@@ -33,14 +33,13 @@ import (
 type field struct {
 	Name string
 	Type string
-	Tag string
+	Tag  string
 }
 
-var mapLength = map[int]string{2:"8", 4:"16", 9:"32", 20:"64"}
-var keysLength = []int {2, 4, 9, 20}
-var typeStrings = []string {"bool", "date", "string"}
+var mapLength = map[int]string{2: "8", 4: "16", 9: "32", 20: "64"}
+var keysLength = []int{2, 4, 9, 20}
+var typeStrings = []string{"bool", "date", "string"}
 var reNumber = regexp.MustCompile(`^[-+]?\d*\.?\d*$`)
-
 
 type CSVMeta struct {
 	Now time.Time
@@ -50,9 +49,7 @@ type CSVMeta struct {
 	Fields map[string][]field
 }
 
-/*
-Use csvmeta to generate each model for models.go
- */
+// Generate use csvmeta to generate each model for models.go
 func (csvmeta *CSVMeta) Generate() error {
 	t := template.Must(template.New("models").Parse(modelsTemplate))
 	f, err := os.Create("importcsv/models.go")
@@ -65,15 +62,13 @@ func (csvmeta *CSVMeta) Generate() error {
 	return nil
 }
 
-/*
-Read a sample set of data from each CSV file and determine the fields and field types
-Load that metadata to csvmeta struct Models and Fields
- */
+// PopulateMeta read a sample set of data from each CSV file and determine the fields and field types
+// Load that metadata to csvmeta struct Models and Fields
 func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 	csvmeta.Now = time.Now()
 	filesMap, err := csvmeta.FilesFetch(path)
-	csvmeta.Models =  map[string]string{}
-	csvmeta.Fields =  map[string][]field{}
+	csvmeta.Models = map[string]string{}
+	csvmeta.Fields = map[string][]field{}
 	if err != nil {
 		return fmt.Errorf("Failed to find CSV file(s) from %s, Due to %s", path, err)
 	}
@@ -121,10 +116,8 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 	return nil
 }
 
-/*
-Take a name and list of values from CSV then test the values to work out the type
- */
-func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field{
+// GetField take a name and list of values from CSV then test the values to work out the type
+func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field {
 	var f = field{Name: name}
 	var typeStr = ""
 	var vLength = 0
@@ -161,7 +154,9 @@ func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field{
 				break
 			}
 		}
-		if typeStr == "float8" || typeStr == "float16" { typeStr = "float32" }
+		if typeStr == "float8" || typeStr == "float16" {
+			typeStr = "float32"
+		}
 	}
 	f.Type = typeStr
 	return f
@@ -181,9 +176,7 @@ type ModelFactory struct {
 	models []string
 }
 
-/*
-Make a single instance of the model factory for use in importcsv
- */
+// MakeModels make a single instance of the model factory for use in importcsv
 func MakeModels() ModelFactory {
 	factory := ModelFactory{}{{range $k, $v := .Models}}
     factory.models = append(factory.models, "{{$k}}"){{end}}
