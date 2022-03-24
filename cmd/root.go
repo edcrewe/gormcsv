@@ -46,8 +46,10 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVarP(&Files, "files", "f", "", "CSV file or folder of files")
-	viper.BindPFlag("files", rootCmd.PersistentFlags().Lookup("files"))
-
+	err := viper.BindPFlag("files", rootCmd.PersistentFlags().Lookup("files"))
+	if err != nil {
+		fmt.Printf("Failed to get CSV files argument: %s\n", err)
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.

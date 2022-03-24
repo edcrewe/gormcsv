@@ -32,8 +32,16 @@ var inspectcsvCmd = &cobra.Command{
 		Files, _ := cmd.Flags().GetString("files")
 		fmt.Printf("Inspect csv for %s to generate models.go\n", Files)
 		csvmeta := meta.CSVMeta{}
-		csvmeta.PopulateMeta(Files)
-		inspectcsv.Generate(csvmeta)
+		err := csvmeta.PopulateMeta(Files)
+		if err != nil {
+			fmt.Printf("Failed to determine the fields, cannot import due to error: %s\n", err)
+			return
+		}
+		err = inspectcsv.Generate(csvmeta)
+		if err != nil {
+			fmt.Printf("Failed to generate models.go from the CSV fields found, due to error: %s\n", err)
+			return
+		}
 	},
 }
 
