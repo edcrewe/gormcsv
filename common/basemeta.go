@@ -1,5 +1,5 @@
 // Base class equivalent = embedded Meta for FieldMeta and CSVMeta
-package importcsv
+package common
 
 import (
 	"fmt"

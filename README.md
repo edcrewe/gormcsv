@@ -1,6 +1,6 @@
 # gormcsv
 
-Ed Crewe - June 2019
+Ed Crewe - March 2022
 
 gormcsv provides loading of CSV data files / fixtures via the golang ORM, GORM
 
@@ -27,7 +27,6 @@ Available Commands:
 Flags:
   -f, --files string   CSV file or folder of files
   -h, --help           help for gormcsv
-  -t, --toggle         Help message for toggle
 
 Use "gormcsv [command] --help" for more information about a command.
 

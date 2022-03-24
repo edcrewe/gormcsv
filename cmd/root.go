@@ -45,7 +45,6 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.PersistentFlags().StringVarP(&Files, "files", "f", "", "CSV file or folder of files")
 	viper.BindPFlag("files", rootCmd.PersistentFlags().Lookup("files"))
 

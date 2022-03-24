@@ -17,7 +17,8 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/edcrewe/gormcsv/importcsv"
+
+	"github.com/edcrewe/gormcsv/inspectcsv"
 	"github.com/spf13/cobra"
 )
 
@@ -25,11 +26,11 @@ import (
 var inspectcsvCmd = &cobra.Command{
 	Use:   "inspectcsv",
 	Short: "Create models from CSV files",
-	Long: `The data inspect command. CSV files must be named the same as the target Model / Table`,
+	Long:  `The data inspect command. CSV files must be named the same as the target Model / Table`,
 	Run: func(cmd *cobra.Command, args []string) {
 		Files, _ := cmd.Flags().GetString("files")
 		fmt.Printf("Inspect csv for %s to generate models.go\n", Files)
-		csvmeta := importcsv.CSVMeta{}
+		csvmeta := inspectcsv.CSVMeta{}
 		csvmeta.PopulateMeta(Files)
 		csvmeta.Generate()
 	},

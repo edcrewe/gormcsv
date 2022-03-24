@@ -1,5 +1,5 @@
 // Field interface uses reflect to get a map of field names and types for matching to CSV column names
-package importcsv
+package common
 
 import (
 	"fmt"

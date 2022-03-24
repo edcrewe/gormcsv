@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/edcrewe/gormcsv/importcsv"
+	"github.com/edcrewe/gormcsv/common"
 )
 
 // TestConvert test the FieldMeta.Convert function
 func TestConvert(t *testing.T) {
-	meta := importcsv.FieldMeta{}
+	meta := common.FieldMeta{}
 
 	type TableTest struct {
 		input   string

@@ -9,12 +9,14 @@ import (
 	"log"
 	"strings"
 
+	"github.com/edcrewe/gormcsv/common"
+	"github.com/edcrewe/gormcsv/inspectcsv"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
 type ModelCSV struct {
-	Files
+	common.Files
 	fields string
 }
 
@@ -64,12 +66,12 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	var count int = 0
 	var duplicates int = 0
 	db.LogMode(false)
-	csvmeta := CSVMeta{}
+	csvmeta := inspectcsv.CSVMeta{}
 	csvmeta.PopulateMeta(filePath)
 	fmt.Println(filePath)
 	for fileName, csvFile := range filesMap {
 		reader := csv.NewReader(bufio.NewReader(csvFile))
-		meta := FieldMeta{}
+		meta := common.FieldMeta{}
 		name, error := mcsv.getModel(fileName)
 		fieldList := []string{}
 		for _, field := range csvmeta.Fields[name] {

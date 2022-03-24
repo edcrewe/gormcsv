@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/edcrewe/gormcsv/importcsv"
+	"github.com/edcrewe/gormcsv/inspectcsv"
 )
 
 // TestPopulateMeta test CSVMeta.PopulateMeta
 func TestPopulateMeta(t *testing.T) {
-	csvmeta := importcsv.CSVMeta{}
+	csvmeta := inspectcsv.CSVMeta{}
 	path := "fixtures"
 	err := csvmeta.PopulateMeta(path)
 	if err != nil {
@@ -68,7 +68,7 @@ func TestPopulateMeta(t *testing.T) {
 
 // TestGetField test the CSVMeta.GetField function
 func TestGetField(t *testing.T) {
-	csvmeta := importcsv.CSVMeta{}
+	csvmeta := inspectcsv.CSVMeta{}
 
 	type TableTest struct {
 		input   string

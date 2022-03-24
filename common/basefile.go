@@ -1,5 +1,5 @@
 // Base class equivalent = embedded Files for ModelCSV and CSVMeta
-package importcsv
+package common
 
 import (
 	"fmt"

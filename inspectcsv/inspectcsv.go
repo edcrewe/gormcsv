@@ -16,7 +16,7 @@ float32     the set of all IEEE-754 32-bit floating-point numbers
 float64     the set of all IEEE-754 64-bit floating-point numbers
 
 */
-package importcsv
+package inspectcsv
 
 import (
 	"bufio"
@@ -29,6 +29,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/edcrewe/gormcsv/common"
 )
 
 type field struct {
@@ -44,8 +46,8 @@ var reNumber = regexp.MustCompile(`^[-+]?\d*\.?\d*$`)
 
 type CSVMeta struct {
 	Now time.Time
-	Meta
-	Files
+	common.Meta
+	common.Files
 	Models map[string]string
 	Fields map[string][]field
 }
