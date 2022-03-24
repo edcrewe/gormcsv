@@ -20,6 +20,7 @@ package importcsv
 
 import (
 	"bufio"
+	_ "embed"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -112,7 +113,6 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 			csvmeta.Fields[model] = append(csvmeta.Fields[model], field)
 		}
 	}
-	fmt.Println(csvmeta.Fields["TestTypes"])
 	return nil
 }
 
@@ -162,43 +162,5 @@ func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field {
 	return f
 }
 
-var modelsTemplate = `// Models for loading CSV data  - generated {{ .Now }}
-package importcsv
-
-import (
-	"github.com/jinzhu/gorm"
-	"strings"
-	// "time"
-)
-
-// GORM Model factory
-type ModelFactory struct {
-	models []string
-}
-
-// MakeModels make a single instance of the model factory for use in importcsv
-func MakeModels() ModelFactory {
-	factory := ModelFactory{}{{range $k, $v := .Models}}
-    factory.models = append(factory.models, "{{$k}}"){{end}}
-	return factory
-}
-
-{{range $k, $v := .Fields}}
-type {{ $k }} struct {
-   gorm.Model
-   {{ range $f := $v }}{{$f.Name}} {{$f.Type}} {{$f.Tag}}
-   {{end}}
-}
-{{end}}
-
-func (f ModelFactory) New(name string) interface{} {
-	name = strings.ToLower(name)
-	switch name {
-	{{range $k, $v := .Models}}
-	case "{{$k}}":
-		return &{{$v}}{}
-	{{end}}
-	}
-	return nil
-}
-`
+//go:embed models.tmpl
+var modelsTemplate string
