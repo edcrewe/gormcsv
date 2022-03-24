@@ -28,6 +28,7 @@ COPY go.mod .
 COPY go.sum .
 
 RUN go mod download
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 # Copy everything from the current directory to the PWD(Present Working Directory) inside the container
 COPY . .

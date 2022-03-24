@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/edcrewe/gormcsv/inspectcsv"
+	"github.com/edcrewe/gormcsv/meta"
 	"github.com/spf13/cobra"
 )
 
@@ -30,9 +31,9 @@ var inspectcsvCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		Files, _ := cmd.Flags().GetString("files")
 		fmt.Printf("Inspect csv for %s to generate models.go\n", Files)
-		csvmeta := inspectcsv.CSVMeta{}
+		csvmeta := meta.CSVMeta{}
 		csvmeta.PopulateMeta(Files)
-		csvmeta.Generate()
+		inspectcsv.Generate(csvmeta)
 	},
 }
 

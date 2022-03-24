@@ -1,20 +1,15 @@
-//go:build unit || u
-// +build unit u
-
 // Unit tests for fieldmeta - importcsv reflection subpackage
-package tests
+package meta
 
 import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/edcrewe/gormcsv/common"
 )
 
 // TestConvert test the FieldMeta.Convert function
 func TestConvert(t *testing.T) {
-	meta := common.FieldMeta{}
+	meta := FieldMeta{}
 
 	type TableTest struct {
 		input   string

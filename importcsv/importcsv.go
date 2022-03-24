@@ -9,20 +9,17 @@ import (
 	"log"
 	"strings"
 
-	"github.com/edcrewe/gormcsv/common"
-	"github.com/edcrewe/gormcsv/inspectcsv"
+	"github.com/edcrewe/gormcsv/meta"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
 type ModelCSV struct {
-	common.Files
+	meta.Files
 	fields string
 }
 
-/*
-Connect to the Database
-*/
+// ConnectDB connect to the Database
 func (mcsv *ModelCSV) ConnectDB() *gorm.DB {
 	db, err := gorm.Open("sqlite3", "test.db")
 	if err != nil {
@@ -31,9 +28,7 @@ func (mcsv *ModelCSV) ConnectDB() *gorm.DB {
 	return db
 }
 
-/*
-Create the schema in the db
-*/
+// CreateSchema create the schema in the db
 func (mcsv *ModelCSV) CreateSchema(db *gorm.DB, factory ModelFactory) {
 	for _, name := range factory.models {
 		model := factory.New(name)
@@ -50,9 +45,7 @@ func (mcsv *ModelCSV) getModel(name string) (string, error) {
 	}
 }
 
-/*
-Main command method for importcsv
-*/
+// ImportCSV main command method for importcsv
 func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	errorlist := []error{}
 	db := mcsv.ConnectDB()
@@ -60,18 +53,22 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	mcsv.CreateSchema(db, factory)
 	filesMap, err := mcsv.FilesFetch(filePath)
 	if err != nil {
-		fmt.Println("Failed to load CSV file(s) from %s, Due to %s", filePath, err)
+		fmt.Printf("Failed to load CSV file(s) from %s, Due to %s\n", filePath, err)
 		return
 	}
 	var count int = 0
 	var duplicates int = 0
 	db.LogMode(false)
-	csvmeta := inspectcsv.CSVMeta{}
-	csvmeta.PopulateMeta(filePath)
-	fmt.Println(filePath)
+	csvmeta := meta.CSVMeta{}
+	err = csvmeta.PopulateMeta(filePath)
+	if err != nil {
+		fmt.Printf("Failed to determine the fields, cannot import due to error: %s\n", err)
+		return
+	}
+	fmt.Printf("Importing data from %s\n", filePath)
 	for fileName, csvFile := range filesMap {
 		reader := csv.NewReader(bufio.NewReader(csvFile))
-		meta := common.FieldMeta{}
+		meta := meta.FieldMeta{}
 		name, error := mcsv.getModel(fileName)
 		fieldList := []string{}
 		for _, field := range csvmeta.Fields[name] {

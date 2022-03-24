@@ -1,5 +1,5 @@
 // Base class equivalent = embedded Meta for FieldMeta and CSVMeta
-package common
+package meta
 
 import (
 	"fmt"
@@ -7,10 +7,6 @@ import (
 	"strings"
 	"time"
 )
-
-// Embedded stuct to hang the convert method on
-type Meta struct {
-}
 
 /*
 Type converter for CSV string fields to correct basic type or time

@@ -1,20 +1,11 @@
 // Field interface uses reflect to get a map of field names and types for matching to CSV column names
-package common
+package meta
 
 import (
 	"fmt"
 	"reflect"
 	"strings"
 )
-
-// FieldMeta struct for metadata about a Model
-// fieldcols = position in CSV parsed array mapped to field name
-// fieldtype = type of field used for converting from CSV string
-type FieldMeta struct {
-	Meta
-	fieldcols map[string]int
-	// fieldtypes map[string]reflect.Type
-}
 
 // SetMeta create index lookup for csv parsed line array fields
 // Match lowercased name to field name and create index map

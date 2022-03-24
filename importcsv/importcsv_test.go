@@ -1,18 +1,14 @@
-//go:build integration || i
-// +build integration i
-
-package tests
+package importcsv
 
 import (
 	"fmt"
 	"os"
 	"testing"
-
-	"github.com/edcrewe/gormcsv/importcsv"
 )
 
 // TestMain setup for all the tests in package tests, remove the db, then run the tests
 func TestMain(m *testing.M) {
+	code := m.Run()
 	if _, err := os.Stat("test.db"); !os.IsNotExist(err) {
 		err := os.Remove("test.db")
 		if err != nil {
@@ -20,16 +16,16 @@ func TestMain(m *testing.M) {
 			return
 		}
 	}
-	os.Exit(m.Run())
+	os.Exit(code)
 }
 
 // TestImportCountry integration test for importcsv
 // Run the import of test models.go to sqlite and check data is in the db
 func TestImportCountry(t *testing.T) {
-	mcsv := importcsv.ModelCSV{}
+	mcsv := ModelCSV{}
 	db := mcsv.ConnectDB()
 	// Run import
-	mcsv.ImportCSV("fixtures/Country.csv")
+	mcsv.ImportCSV("../static/fixtures/Country.csv")
 	// Test database is populated
 	var count int
 	db.Table("countries").Count(&count)
@@ -42,10 +38,10 @@ func TestImportCountry(t *testing.T) {
 // TestImportTestTypes integration test for importcsv
 // Run the import of test models.go to sqlite and check data is in the db
 func TestImportTestTypes(t *testing.T) {
-	mcsv := importcsv.ModelCSV{}
+	mcsv := ModelCSV{}
 	db := mcsv.ConnectDB()
 	// Run import
-	mcsv.ImportCSV("fixtures/TestTypes.csv")
+	mcsv.ImportCSV("../static/fixtures/TestTypes.csv")
 	// Test database is populated
 	var count int
 	db.Table("test_types").Count(&count)

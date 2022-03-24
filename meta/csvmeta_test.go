@@ -1,20 +1,15 @@
-//go:build unit || u
-// +build unit u
-
-package tests
+package meta
 
 import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/edcrewe/gormcsv/inspectcsv"
 )
 
 // TestPopulateMeta test CSVMeta.PopulateMeta
 func TestPopulateMeta(t *testing.T) {
-	csvmeta := inspectcsv.CSVMeta{}
-	path := "fixtures"
+	csvmeta := CSVMeta{}
+	path := "../static/fixtures"
 	err := csvmeta.PopulateMeta(path)
 	if err != nil {
 		fmt.Printf("Failed to populate meta for path %s due to:\n %s\n", path, err)
@@ -68,7 +63,7 @@ func TestPopulateMeta(t *testing.T) {
 
 // TestGetField test the CSVMeta.GetField function
 func TestGetField(t *testing.T) {
-	csvmeta := inspectcsv.CSVMeta{}
+	csvmeta := CSVMeta{}
 
 	type TableTest struct {
 		input   string

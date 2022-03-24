@@ -1,5 +1,5 @@
 // Base class equivalent = embedded Files for ModelCSV and CSVMeta
-package common
+package meta
 
 import (
 	"fmt"
@@ -7,10 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-// Files embedded stuct to hang the FilesFetch method on
-type Files struct {
-}
 
 // IsDirectory checks if path is a directory
 func IsDirectory(path string) (bool, error) {
