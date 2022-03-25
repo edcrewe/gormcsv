@@ -36,7 +36,7 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 		if reader != nil {
 			for i := 1; i <= sample; i++ {
 				record, error := reader.Read()
-				for index, _ := range record {
+				for index := range record {
 					if i == 1 {
 						keys = make([]string, len(record))
 						copy(keys, record)

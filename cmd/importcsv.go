@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/edcrewe/gormcsv/importcsv"
 	"github.com/spf13/cobra"
 )
@@ -37,6 +38,4 @@ var importcsvCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(importcsvCmd)
-
-	// Here you will define your flags and configuration settings specific to importcsv
 }
