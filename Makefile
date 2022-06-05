@@ -9,8 +9,7 @@ help:
 
 build: clean
 	docker build -t gormcsv:0.1.1 .
-	docker run -d --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.1.1 bash -c "go build -v"
-	docker logs -f gormcsv
+	docker run -a stdout --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.1.1 bash -c "go build -v"
 
 clean:
 	docker stop gormcsv || exit 0
@@ -18,12 +17,10 @@ clean:
 	docker volume prune -f
 
 run: clean 
-	docker run -d --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.1.1 bash -c "go build;chmod755 gormcsv;./gormcsv importcsv -f static/fixtures/Country.csv"
-	docker logs -f gormcsv
+	docker run -a stdout --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.1.1 bash -c "go build;chmod755 gormcsv;./gormcsv importcsv -f static/fixtures/Country.csv"
 
 test: clean
-	docker run -d --name gormcsv gormcsv:0.1.1 bash -c "go build;cd tests;go test -v --tags=u,i"
-	docker logs -f gormcsv
+	docker run -a stdout --name gormcsv gormcsv:0.1.1 bash -c "go build;cd tests;go test -v --tags=u,i"
 
 lint: clean
 	docker run -d --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.1.1 bash -c "golangci-lint run ./... -c golangci-lint.yml -v --timeout 5m"
