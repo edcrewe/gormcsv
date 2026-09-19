@@ -21,6 +21,7 @@ package inspectcsv
 import (
 	_ "embed"
 	"fmt"
+	"io"
 	"os"
 	"text/template"
 
@@ -30,18 +31,23 @@ import (
 //go:embed models.tmpl
 var modelsTemplate string
 
-// Generate use csvmeta to generate each model for models.go
-func Generate(csvMeta meta.CSVMeta) error {
+// GenerateFile uses csvmeta to generate models.go to the specified path
+func GenerateFile(csvMeta meta.CSVMeta, path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = Generate(f, csvMeta)
+	if err == nil {
+		fmt.Printf("Generated %s\n", path)
+	}
+	return err
+}
+
+// Generate uses csvmeta to generate each model to the provided writer
+func Generate(w io.Writer, csvMeta meta.CSVMeta) error {
 	t := template.Must(template.New("models").Parse(modelsTemplate))
-	f, err := os.Create("importcsv/models.go")
-	if err != nil {
-		return err
-	}
-	err = t.Execute(f, csvMeta)
-	if err != nil {
-		return err
-	} else {
-		fmt.Println("Generated importcsv/models.go")
-	}
-	return nil
+	return t.Execute(w, csvMeta)
 }

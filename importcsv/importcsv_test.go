@@ -53,3 +53,15 @@ func TestImportTestTypes(t *testing.T) {
 
 	//fmt.Println(model.Codecol)
 }
+
+// TestImportMissingFile tests failure when file doesn't exist
+func TestImportMissingFile(t *testing.T) {
+	mcsv := ModelCSV{}
+	mcsv.ImportCSV("nonexistent.csv")
+}
+
+// TestImportBadData tests failure when CSV has broken rows
+func TestImportBadData(t *testing.T) {
+	mcsv := ModelCSV{}
+	mcsv.ImportCSV("../static/fixtures/data/test_broken_rows.csv")
+}
