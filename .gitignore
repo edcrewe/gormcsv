@@ -17,3 +17,6 @@ test.db
 
 # Goland files
 .idea/*
+
+# VS Code workspace files
+.vscode/
