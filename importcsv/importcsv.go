@@ -32,7 +32,9 @@ func (mcsv *ModelCSV) ConnectDB() *gorm.DB {
 func (mcsv *ModelCSV) CreateSchema(db *gorm.DB, factory ModelFactory) {
 	for _, name := range factory.models {
 		model := factory.New(name)
-		db.AutoMigrate(model)
+		if err := db.AutoMigrate(model); err != nil {
+			log.Printf("failed to automigrate schema for %s: %v", name, err)
+		}
 	}
 }
 
@@ -121,6 +123,6 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	}
 	sqlDB, err := db.DB()
 	if err == nil {
-		sqlDB.Close()
+		_ = sqlDB.Close()
 	}
 }

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"text/template"
 
 	"github.com/edcrewe/gormcsv/meta"
@@ -33,7 +34,8 @@ var modelsTemplate string
 
 // GenerateFile uses csvmeta to generate models.go to the specified path
 func GenerateFile(csvMeta meta.CSVMeta, path string) error {
-	f, err := os.Create(path)
+	cleanPath := filepath.Clean(path)
+	f, err := os.Create(cleanPath) // #nosec G304
 	if err != nil {
 		return err
 	}

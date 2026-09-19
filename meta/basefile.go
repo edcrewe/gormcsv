@@ -28,7 +28,8 @@ func (mcsv *Files) FilesFetch(path string) (map[string]*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := os.Open(path)
+	cleanPath := filepath.Clean(path)
+	f, err := os.Open(cleanPath) // #nosec G304
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +37,7 @@ func (mcsv *Files) FilesFetch(path string) (map[string]*os.File, error) {
 		files = append(files, f)
 	} else {
 		fileInfos, err := f.Readdir(-1)
-		f.Close()
+		_ = f.Close()
 		for _, fileInfo := range fileInfos {
 			filePath := filepath.Join(path, fileInfo.Name())
 			dir, err := IsDirectory(filePath)
@@ -46,7 +47,8 @@ func (mcsv *Files) FilesFetch(path string) (map[string]*os.File, error) {
 			if dir {
 				continue
 			}
-			csvFile, err := os.Open(filePath)
+			cleanFilePath := filepath.Clean(filePath)
+			csvFile, err := os.Open(cleanFilePath) // #nosec G304
 			if err != nil {
 				return nil, err
 			}
