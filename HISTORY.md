@@ -3,6 +3,8 @@
 ## 0.2.0 - Upgrade to GORM v2 and Go 1.24 - 19 Sept 2026
 
 * Migrate to modern GORM v2 (`gorm.io/gorm`) and updated driver plugins.
+  - github.com/jinzhu/gorm (up to v1.9.x) = GORM v1
+  - gorm.io/gorm (from v1.20.0 up to today's v1.31.2) = GORM v2
 * Update Go version requirement to 1.24.
 * Update Dockerfile to use `golang:1.24-alpine`.
 * Update Makefile `test` and `build` commands to use `--no-cache` and modern `go test ./...` syntax.
