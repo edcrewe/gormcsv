@@ -32,8 +32,5 @@ Use "gormcsv [command] --help" for more information about a command.
 
 # Tests
 
-Unit:
-  cd tests & go test -v --tags=unit
-  
-Integration: 
-  cd tests &  go test -v --tags=i
+Unit & Integration:
+  go test -v ./...

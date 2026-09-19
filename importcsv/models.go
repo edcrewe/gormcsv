@@ -4,7 +4,7 @@ package importcsv
 import (
 	"strings"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 // GORM Model factory

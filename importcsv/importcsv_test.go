@@ -27,7 +27,7 @@ func TestImportCountry(t *testing.T) {
 	// Run import
 	mcsv.ImportCSV("../static/fixtures/Country.csv")
 	// Test database is populated
-	var count int
+	var count int64
 	db.Table("countries").Count(&count)
 	//count := checkCount(rows)
 	if count < 245 {
@@ -43,7 +43,7 @@ func TestImportTestTypes(t *testing.T) {
 	// Run import
 	mcsv.ImportCSV("../static/fixtures/TestTypes.csv")
 	// Test database is populated
-	var count int
+	var count int64
 	db.Table("test_types").Count(&count)
 	//count := checkCount(rows)
 	if count < 6 {

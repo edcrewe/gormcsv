@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/edcrewe/gormcsv/meta"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/driver/sqlite"
 )
 
 type ModelCSV struct {
@@ -21,7 +21,7 @@ type ModelCSV struct {
 
 // ConnectDB connect to the Database
 func (mcsv *ModelCSV) ConnectDB() *gorm.DB {
-	db, err := gorm.Open("sqlite3", "test.db")
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database")
 	}
@@ -58,7 +58,6 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	}
 	var count int = 0
 	var duplicates int = 0
-	db.LogMode(false)
 	csvmeta := meta.CSVMeta{}
 	err = csvmeta.PopulateMeta(filePath)
 	if err != nil {
@@ -109,7 +108,6 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 				count += 1
 			}
 		}
-		db.LogMode(true)
 		fmt.Printf("Imported %d rows to %s\n", count, name)
 		if duplicates > 0 {
 			fmt.Printf("Skipped %d duplicate rows\n", duplicates)
@@ -121,5 +119,8 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 			}
 		}
 	}
-	db.Close()
+	sqlDB, err := db.DB()
+	if err == nil {
+		sqlDB.Close()
+	}
 }
