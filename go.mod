@@ -1,6 +1,6 @@
 module github.com/edcrewe/gormcsv
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/mitchellh/go-homedir v1.1.0
@@ -26,8 +26,8 @@ require (
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
