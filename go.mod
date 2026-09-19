@@ -1,6 +1,6 @@
 module github.com/edcrewe/gormcsv
 
-go 1.25.0
+go 1.24.0
 
 require (
 	github.com/mitchellh/go-homedir v1.1.0
