@@ -1,6 +1,6 @@
 # gormcsv
 
-Ed Crewe - March 2022
+Ed Crewe - September 2026
 
 gormcsv provides loading of CSV data files / fixtures via the golang ORM, GORM
 
@@ -34,3 +34,8 @@ Use "gormcsv [command] --help" for more information about a command.
 
 Unit & Integration:
   go test -v ./...
+
+# History
+
+* v0.2.0 for Gorm v2
+* v0.1.0 for Gorm v1
