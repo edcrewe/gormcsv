@@ -16,7 +16,7 @@ gormcsv
 test.db
 
 # Goland files
-.idea/*
+.idea/
 
 # VS Code workspace files
 .vscode/
