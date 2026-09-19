@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - Upgrade to GORM v2 and Go 1.24 - 19 Sept 2026
+## 0.2.0 - Upgrade to GORM v2 and Go 1.25 - 19 Sept 2026
 
 * Migrate to modern GORM v2 (`gorm.io/gorm`) and updated driver plugins.
   - github.com/jinzhu/gorm (up to v1.9.x) = GORM v1
