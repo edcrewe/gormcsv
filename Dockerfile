@@ -1,7 +1,7 @@
 # Dockerfile References: https://docs.docker.com/engine/reference/builder/
 
-# Start from golang v1.18 base image
-FROM golang:1.18-alpine AS build_base
+# Start from golang v1.25 base image
+FROM golang:1.25-alpine AS build_base
 
 # Add Maintainer Info
 LABEL maintainer="Ed Crewe <edmundcrewe@gmail.com>"
@@ -21,7 +21,7 @@ RUN apk update \
 # Set the Current Working Directory inside the container
 WORKDIR $GOPATH/src/github.com/edcrewe/gormcsv
 
-ENV GO111MODULE on
+ENV GO111MODULE=on
 ENV CGO_CFLAGS="-g -O2 -Wno-return-local-addr"
 
 COPY go.mod .
@@ -34,4 +34,4 @@ RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 COPY . .
 
 # Run the unit tests
-CMD ["go test -v --tags=u,i"]
+CMD ["go", "test", "-v", "./..."]

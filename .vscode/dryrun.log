@@ -1,0 +1,9 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/ed.crewe/projects/gormcsv'
+echo "build - build docker  image"
+echo "run - build gormcsv and run demo import of csv file"
+echo "test - unit and integration tests"
+echo "clean - remove all build, test, coverage and build artifacts"
+echo "lint - lint the code"
+make: Leaving directory `/Users/ed.crewe/projects/gormcsv'
+ 

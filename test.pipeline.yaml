@@ -16,7 +16,7 @@ steps:
     title: "Building Docker Image"
     type: "build"
     image_name: "gormcsv"
-    tag: "0.1.0"
+    tag: "0.2.0"
     dockerfile: "Dockerfile"
     stage: "build"
   push:
@@ -26,18 +26,18 @@ steps:
     registry: "cfcr"
     candidate: "${{build}}"
     tags:
-      - "0.1.0"
+      - "0.2.0"
       - "${{CF_REVISION}}"
     stage: "push"
   unit:
     title: Running Unit tests
-    image: 'r.cfcr.io/edcrewe/gormcsv:0.1.0'
+    image: 'r.cfcr.io/edcrewe/gormcsv:0.2.0'
     stage: unit 
     commands:
       - cd tests;go test -v
   integration:
     title: Running Integration tests
-    image: 'r.cfcr.io/edcrewe/gormcsv:0.1.0'
+    image: 'r.cfcr.io/edcrewe/gormcsv:0.2.0'
     stage: integration 
     commands:
       - cd tests;go test --tags=integration -v

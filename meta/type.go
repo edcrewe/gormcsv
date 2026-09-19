@@ -19,7 +19,7 @@ type FieldMeta struct {
 	// fieldtypes map[string]reflect.Type
 }
 
-type field struct {
+type Field struct {
 	Name string
 	Type string
 	Tag  string
@@ -31,5 +31,5 @@ type CSVMeta struct {
 	Meta
 	Files
 	Models map[string]string
-	Fields map[string][]field
+	Fields map[string][]Field
 }

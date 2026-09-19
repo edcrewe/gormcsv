@@ -22,7 +22,7 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 	csvmeta.Now = time.Now()
 	filesMap, err := csvmeta.FilesFetch(path)
 	csvmeta.Models = map[string]string{}
-	csvmeta.Fields = map[string][]field{}
+	csvmeta.Fields = map[string][]Field{}
 	if err != nil {
 		return fmt.Errorf("Failed to find CSV file(s) from %s, Due to %s", path, err)
 	}
@@ -69,8 +69,8 @@ func (csvmeta *CSVMeta) PopulateMeta(path string) error {
 }
 
 // GetField take a name and list of values from CSV then test the values to work out the type
-func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) field {
-	var f = field{Name: name}
+func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) Field {
+	var f = Field{Name: name}
 	var typeStr = ""
 	var vLength = 0
 	for _, valueStr := range valueStrings {
