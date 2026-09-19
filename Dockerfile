@@ -1,7 +1,7 @@
 # Dockerfile References: https://docs.docker.com/engine/reference/builder/
 
 # Start from golang v1.18 base image
-FROM golang:1.18-alpine AS build_base
+FROM golang:1.22-alpine AS build_base
 
 # Add Maintainer Info
 LABEL maintainer="Ed Crewe <edmundcrewe@gmail.com>"
@@ -34,4 +34,4 @@ RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 COPY . .
 
 # Run the unit tests
-CMD ["go test -v --tags=u,i"]
+CMD ["go", "test", "-v", "./..."]
