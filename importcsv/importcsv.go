@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -14,6 +16,10 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+// fileSizeWorkerThreshold is the CSV file size below which a single worker is used
+// regardless of the database type.
+const fileSizeWorkerThreshold = 5 * 1024 * 1024 // 5 MB
 
 type ModelCSV struct {
 	meta.Files
@@ -48,9 +54,24 @@ func (mcsv *ModelCSV) getModel(name string) (string, error) {
 	}
 }
 
+// calcWorkerCount returns 1 for SQLite (which serialises writers) or for files
+// under 5 MB where the concurrency overhead outweighs the gain. For larger
+// files on other databases it uses runtime.NumCPU.
+func calcWorkerCount(db *gorm.DB, csvFile *os.File) int {
+	if db.Dialector.Name() == "sqlite" {
+		return 1
+	}
+	if info, err := csvFile.Stat(); err == nil && info.Size() < fileSizeWorkerThreshold {
+		return 1
+	}
+	if n := runtime.NumCPU(); n > 1 {
+		return n
+	}
+	return 1
+}
+
 // ImportCSV main command method for importcsv
 func (mcsv *ModelCSV) ImportCSV(filePath string) {
-	errorlist := []error{}
 	db := mcsv.ConnectDB()
 	factory := MakeModels()
 	mcsv.CreateSchema(db, factory)
@@ -59,8 +80,6 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 		fmt.Printf("Failed to load CSV file(s) from %s, Due to %s\n", filePath, err)
 		return
 	}
-	var count int = 0
-	var duplicates int = 0
 	csvmeta := meta.CSVMeta{}
 	err = csvmeta.PopulateMeta(filePath)
 	if err != nil {
@@ -69,9 +88,13 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 	}
 	fmt.Printf("Importing data from %s\n", filePath)
 	for fileName, csvFile := range filesMap {
+		var count int
+		var duplicates int
+		var errorlist []error
+
 		reader := csv.NewReader(bufio.NewReader(csvFile))
-		meta := meta.FieldMeta{}
-		name, error := mcsv.getModel(fileName)
+		fieldMeta := meta.FieldMeta{}
+		name, modelErr := mcsv.getModel(fileName)
 		fieldList := []string{}
 		for _, field := range csvmeta.Fields[name] {
 			if field.Name != "Model" {
@@ -79,23 +102,23 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 			}
 		}
 		mcsv.fields = strings.Join(fieldList, ",")
-		if error != nil {
-			fmt.Println(error)
+		if modelErr != nil {
+			fmt.Println(modelErr)
 			return
 		}
 		model := factory.New(name)
-		meta.SetMeta(model, mcsv.fields)
-		// Process with worker pool for performance
+		fieldMeta.SetMeta(model, mcsv.fields)
+
+		workerCount := calcWorkerCount(db, csvFile)
 		var wg sync.WaitGroup
 		jobs := make(chan [][]string, 100)
 		results := make(chan batchResult, 100)
-		workerCount := 4 // Use 4 concurrent workers
 
 		for w := 0; w < workerCount; w++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				worker(jobs, results, &meta, db, factory, name)
+				worker(jobs, results, &fieldMeta, db, factory, name)
 			}()
 		}
 
@@ -104,43 +127,48 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 			close(results)
 		}()
 
-		batchSize := 1000
-		var currentBatch [][]string
-
-		for {
-			record, error := reader.Read()
-			if error == io.EOF {
-				break
-			} else if error != nil {
-				errorlist = append(errorlist, error)
-				continue
+		// Feed jobs from a dedicated goroutine so the main goroutine can drain
+		// results concurrently. Without this, results and jobs buffers can both
+		// fill simultaneously causing a deadlock on large files.
+		// Parse errors are sent as batchResults so they flow through the same
+		// channel and are collected with all other errors below.
+		go func() {
+			defer close(jobs)
+			const batchSize = 1000
+			var currentBatch [][]string
+			for {
+				record, err := reader.Read()
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					results <- batchResult{errors: []error{err}}
+					continue
+				}
+				currentBatch = append(currentBatch, record)
+				if len(currentBatch) >= batchSize {
+					jobs <- currentBatch
+					currentBatch = nil
+				}
 			}
-			currentBatch = append(currentBatch, record)
-			if len(currentBatch) >= batchSize {
+			if len(currentBatch) > 0 {
 				jobs <- currentBatch
-				currentBatch = nil
 			}
-		}
-		if len(currentBatch) > 0 {
-			jobs <- currentBatch
-		}
-		close(jobs)
+		}()
 
 		for res := range results {
 			count += res.count
 			duplicates += res.duplicates
-			if len(res.errors) > 0 {
-				errorlist = append(errorlist, res.errors...)
-			}
+			errorlist = append(errorlist, res.errors...)
 		}
+
 		fmt.Printf("Imported %d rows to %s\n", count, name)
 		if duplicates > 0 {
 			fmt.Printf("Skipped %d duplicate rows\n", duplicates)
 		}
-		if errorlist != nil {
+		if len(errorlist) > 0 {
 			fmt.Printf("Failed import for %d rows due to errors:\n", len(errorlist))
-			for _, error := range errorlist {
-				fmt.Println(error)
+			for _, err := range errorlist {
+				fmt.Println(err)
 			}
 		}
 	}

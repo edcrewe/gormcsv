@@ -1,8 +1,13 @@
 package importcsv
 
 import (
+	"encoding/csv"
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -13,7 +18,7 @@ type BatchUser struct {
 }
 
 func TestDynamicBatch(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file::memory:?mode=memory"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,5 +40,62 @@ func TestDynamicBatch(t *testing.T) {
 	}
 	if res.RowsAffected != 2 {
 		t.Fatalf("Expected 2 rows affected, got %d", res.RowsAffected)
+	}
+}
+
+// TestWorkerPipelineMultiBatch generates a CSV with 2100 rows (spanning three
+// batches of 1000) and imports it via ImportCSV. It verifies the full pipeline
+// including the concurrent job-feeder goroutine, worker pool, and results
+// collection.
+func TestWorkerPipelineMultiBatch(t *testing.T) {
+	const rowCount = 2100
+
+	tmpDir := t.TempDir()
+	csvPath := filepath.Join(tmpDir, "TestTypes.csv")
+	f, err := os.Create(csvPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := csv.NewWriter(f)
+	if err := w.Write([]string{
+		"wordcol", "codecol", "textcol", "bigtextcol",
+		"numbercol", "intcol", "boolcol", "datecol",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < rowCount; i++ {
+		if err := w.Write([]string{
+			fmt.Sprintf("word%d", i),
+			fmt.Sprintf("CD%04d", i),
+			"test text",
+			"test big text",
+			"1.23",
+			"42",
+			"true",
+			"2024-01-01T00:00:00",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w.Flush()
+	if err := w.Error(); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	mcsv := ModelCSV{}
+	db := mcsv.ConnectDB()
+
+	var before int64
+	db.Table("test_types").Count(&before)
+
+	mcsv.ImportCSV(tmpDir)
+
+	var after int64
+	db.Table("test_types").Count(&after)
+
+	added := after - before
+	if added < rowCount {
+		t.Errorf("expected at least %d rows added, got %d", rowCount, added)
 	}
 }

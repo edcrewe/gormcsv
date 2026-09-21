@@ -15,10 +15,12 @@ type batchResult struct {
 }
 
 func worker(jobs <-chan [][]string, results chan<- batchResult, fieldMeta *meta.FieldMeta, db *gorm.DB, factory ModelFactory, name string) {
+	// modelType and sliceType are fixed for this worker's lifetime; compute once.
+	modelType := reflect.TypeOf(factory.New(name))
+	sliceType := reflect.SliceOf(modelType)
+
 	for batch := range jobs {
 		res := batchResult{}
-		modelType := reflect.TypeOf(factory.New(name))
-		sliceType := reflect.SliceOf(modelType)
 		sliceVal := reflect.MakeSlice(sliceType, 0, len(batch))
 
 		var models []interface{}
