@@ -1,7 +1,6 @@
 package meta
 
 import (
-	"encoding/csv"
 	"fmt"
 	"io"
 	"math"
@@ -36,7 +35,7 @@ func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
 	}
 	defer func() { _ = file.Close() }()
 
-	reader := csv.NewReader(file)
+	reader := NewCSVReader(file)
 	header, err := reader.Read()
 	if err != nil {
 		return fmt.Errorf("read header from %q: %w", input.Path, err)

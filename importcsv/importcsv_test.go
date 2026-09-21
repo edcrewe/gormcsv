@@ -125,6 +125,38 @@ func TestImportMultipleBatches(t *testing.T) {
 	}
 }
 
+func TestImportUnquotedCRSeparatedCSV(t *testing.T) {
+	type Item struct {
+		ID          uint
+		Name        string
+		Description string
+	}
+	factory := NewModelFactory(map[string]func() any{
+		"item": func() any { return &Item{} },
+	})
+	importer, db := testImporter(t, factory, 2)
+	path := filepath.Join(t.TempDir(), "Item.csv")
+	data := "name,description\rtent,\"Family, 17.5m2\"\rbucket,20 litre\r"
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := importer.Import(context.Background(), path)
+	if err != nil {
+		t.Fatalf("Import returned an error: %v", err)
+	}
+	if result.Inserted != 2 || result.Rejected != 0 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	var item Item
+	if err := db.Where("name = ?", "tent").First(&item).Error; err != nil {
+		t.Fatalf("query imported item: %v", err)
+	}
+	if item.Description != "Family, 17.5m2" {
+		t.Errorf("description = %q, want %q", item.Description, "Family, 17.5m2")
+	}
+}
+
 func TestImportRejectsInvalidInput(t *testing.T) {
 	importer, _ := testImporter(t, MakeModels(), 0)
 	if _, err := importer.Import(context.Background(), "nonexistent.csv"); err == nil {

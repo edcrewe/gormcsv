@@ -3,7 +3,6 @@ package importcsv
 
 import (
 	"context"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
@@ -160,7 +159,7 @@ func (importer *Importer) importFile(ctx context.Context, input meta.CSVFile) (F
 	}
 	defer func() { _ = file.Close() }()
 
-	reader := csv.NewReader(file)
+	reader := meta.NewCSVReader(file)
 	header, err := reader.Read()
 	if err != nil {
 		return result, fmt.Errorf("%s: read header: %w", input.Path, err)

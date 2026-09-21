@@ -4,6 +4,7 @@
 
 * Add configurable GORM batch insertion with a bounded concurrent writer pool.
 * Map records directly from validated CSV headers without relying on map order.
+* Accept LF, CRLF, and classic Mac CR line endings in quoted or unquoted CSV.
 * Return structured counts and errors for partial imports.
 * Skip duplicate records portably without retrying failed batches row by row.
 * Generate formatted models using deterministic, constant-memory type inference.

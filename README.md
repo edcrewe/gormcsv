@@ -7,6 +7,8 @@ The project demonstrates a small, testable Go import pipeline:
 
 - CSV headers are matched case-insensitively to exported model fields while
   preserving the source column order.
+- Quoted, unquoted, and mixed CSV records support LF, CRLF, and classic Mac CR
+  line endings.
 - Type inference scans all records in constant memory and supports booleans,
   signed integers, floating-point values, common date formats, and strings.
 - Imports use configurable GORM batches and a bounded database-writer pool.
