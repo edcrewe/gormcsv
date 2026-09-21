@@ -1,128 +1,276 @@
+// Package importcsv imports CSV records into GORM models.
 package importcsv
 
 import (
-	"bufio"
-	"encoding/csv"
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"os"
+	"reflect"
 	"strings"
 
 	"github.com/edcrewe/gormcsv/meta"
-	"gorm.io/gorm"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-type ModelCSV struct {
-	meta.Files
-	fields string
+const defaultBatchSize = 1000
+
+// Config controls importer batching and concurrency.
+type Config struct {
+	BatchSize int
+	Workers   int
 }
 
-// ConnectDB connect to the Database
-func (mcsv *ModelCSV) ConnectDB() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	if err != nil {
-		log.Fatal("failed to connect database")
-	}
-	return db
+// FileResult describes the outcome for one CSV file.
+type FileResult struct {
+	File       string
+	Model      string
+	Inserted   int64
+	Duplicates int64
+	Rejected   int64
 }
 
-// CreateSchema create the schema in the db
-func (mcsv *ModelCSV) CreateSchema(db *gorm.DB, factory ModelFactory) {
-	for _, name := range factory.models {
-		model := factory.New(name)
-		if err := db.AutoMigrate(model); err != nil {
-			log.Printf("failed to automigrate schema for %s: %v", name, err)
-		}
-	}
+// Result describes an import. A non-nil error can accompany partial results.
+type Result struct {
+	Files      []FileResult
+	Inserted   int64
+	Duplicates int64
+	Rejected   int64
 }
 
-func (mcsv *ModelCSV) getModel(name string) (string, error) {
-	found := MakeModels().New(name)
-	if found != nil {
-		return name, nil
-	} else {
-		return "", errors.New("Model not found for " + name)
-	}
+// Importer imports CSV files using an existing GORM connection.
+type Importer struct {
+	db        *gorm.DB
+	factory   ModelFactory
+	batchSize int
+	workers   int
 }
 
-// ImportCSV main command method for importcsv
-func (mcsv *ModelCSV) ImportCSV(filePath string) {
-	errorlist := []error{}
-	db := mcsv.ConnectDB()
-	factory := MakeModels()
-	mcsv.CreateSchema(db, factory)
-	filesMap, err := mcsv.FilesFetch(filePath)
-	if err != nil {
-		fmt.Printf("Failed to load CSV file(s) from %s, Due to %s\n", filePath, err)
-		return
+// New creates an importer. Zero values select a batch size of 1000 and one
+// worker. SQLite is always restricted to one writer.
+func New(db *gorm.DB, factory ModelFactory, config Config) (*Importer, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database is required")
 	}
-	var count int = 0
-	var duplicates int = 0
-	csvmeta := meta.CSVMeta{}
-	err = csvmeta.PopulateMeta(filePath)
-	if err != nil {
-		fmt.Printf("Failed to determine the fields, cannot import due to error: %s\n", err)
-		return
+	if len(factory.models) == 0 {
+		return nil, fmt.Errorf("at least one model is required")
 	}
-	fmt.Printf("Importing data from %s\n", filePath)
-	for fileName, csvFile := range filesMap {
-		reader := csv.NewReader(bufio.NewReader(csvFile))
-		meta := meta.FieldMeta{}
-		name, error := mcsv.getModel(fileName)
-		fieldList := []string{}
-		for _, field := range csvmeta.Fields[name] {
-			if field.Name != "Model" {
-				fieldList = append(fieldList, field.Name)
-			}
-		}
-		mcsv.fields = strings.Join(fieldList, ",")
-		if error != nil {
-			fmt.Println(error)
-			return
-		}
-		model := factory.New(name)
-		meta.SetMeta(model, mcsv.fields)
-		// Drop log errors and handle as aggregate msgs
-		for {
-			record, error := reader.Read()
-			if error == io.EOF {
-				break
-			} else if error != nil {
-				errorlist = append(errorlist, error)
-				continue
-			}
-			model, error := meta.RecordToModel(factory.New(name), record)
-			if error != nil {
-				errorlist = append(errorlist, error)
-				continue
-			}
-			// Create
-			result := db.Create(model)
-			if result.Error != nil {
-				if strings.Contains(result.Error.Error(), "UNIQUE constraint failed") {
-					duplicates += 1
-				} else {
-					errorlist = append(errorlist, error)
-				}
-			} else {
-				count += 1
-			}
-		}
-		fmt.Printf("Imported %d rows to %s\n", count, name)
-		if duplicates > 0 {
-			fmt.Printf("Skipped %d duplicate rows\n", duplicates)
-		}
-		if errorlist != nil {
-			fmt.Printf("Failed import for %d rows due to errors:\n", len(errorlist))
-			for _, error := range errorlist {
-				fmt.Println(error)
-			}
-		}
+	if config.BatchSize < 0 {
+		return nil, fmt.Errorf("batch size must not be negative")
+	}
+	if config.Workers < 0 {
+		return nil, fmt.Errorf("worker count must not be negative")
+	}
+	if config.BatchSize == 0 {
+		config.BatchSize = defaultBatchSize
+	}
+	if config.Workers == 0 {
+		config.Workers = 1
+	}
+	return &Importer{
+		db:        db,
+		factory:   factory,
+		batchSize: config.BatchSize,
+		workers:   resolveWorkerCount(db, config.Workers),
+	}, nil
+}
+
+func resolveWorkerCount(db *gorm.DB, configured int) int {
+	if db.Name() == "sqlite" {
+		return 1
 	}
 	sqlDB, err := db.DB()
 	if err == nil {
-		_ = sqlDB.Close()
+		if maximum := sqlDB.Stats().MaxOpenConnections; maximum > 0 && configured > maximum {
+			return maximum
+		}
 	}
+	return configured
+}
+
+// OpenSQLite opens a SQLite database with portable GORM error translation.
+// The caller owns the returned connection and must close its underlying sql.DB.
+func OpenSQLite(path string) (*gorm.DB, error) {
+	return OpenDatabase("sqlite", path)
+}
+
+// OpenDatabase opens a supported GORM database with portable error translation.
+func OpenDatabase(driver, dsn string) (*gorm.DB, error) {
+	var dialector gorm.Dialector
+	switch strings.ToLower(driver) {
+	case "sqlite":
+		dialector = sqlite.Open(dsn)
+	case "postgres", "postgresql":
+		dialector = postgres.Open(dsn)
+	case "mysql":
+		dialector = mysql.Open(dsn)
+	default:
+		return nil, fmt.Errorf("unsupported database driver %q", driver)
+	}
+	db, err := gorm.Open(dialector, &gorm.Config{TranslateError: true})
+	if err != nil {
+		return nil, fmt.Errorf("open %s database: %w", driver, err)
+	}
+	return db, nil
+}
+
+// Import imports one CSV file or every CSV file in a directory. Valid records
+// are retained when other records fail, and the returned error describes every
+// rejected record.
+func (importer *Importer) Import(ctx context.Context, path string) (Result, error) {
+	inputs, err := meta.CSVFiles(path)
+	if err != nil {
+		return Result{}, err
+	}
+
+	result := Result{Files: make([]FileResult, 0, len(inputs))}
+	var importErrors []error
+	for _, input := range inputs {
+		fileResult, err := importer.importFile(ctx, input)
+		result.Files = append(result.Files, fileResult)
+		result.Inserted += fileResult.Inserted
+		result.Duplicates += fileResult.Duplicates
+		result.Rejected += fileResult.Rejected
+		if err != nil {
+			importErrors = append(importErrors, err)
+		}
+	}
+	return result, errors.Join(importErrors...)
+}
+
+func (importer *Importer) importFile(ctx context.Context, input meta.CSVFile) (FileResult, error) {
+	result := FileResult{File: input.Path, Model: input.Model}
+	model := importer.factory.New(input.Model)
+	if model == nil {
+		return result, fmt.Errorf("%s: no model registered for %q", input.Path, input.Model)
+	}
+	if err := importer.db.WithContext(ctx).AutoMigrate(model); err != nil {
+		return result, fmt.Errorf("%s: migrate model %q: %w", input.Path, input.Model, err)
+	}
+
+	file, err := os.Open(input.Path) // #nosec G304 -- path is explicitly supplied by the user
+	if err != nil {
+		return result, fmt.Errorf("open %q: %w", input.Path, err)
+	}
+	defer func() { _ = file.Close() }()
+
+	reader := meta.NewCSVReader(file)
+	header, err := reader.Read()
+	if err != nil {
+		return result, fmt.Errorf("%s: read header: %w", input.Path, err)
+	}
+	fieldMeta, err := meta.NewFieldMeta(model, header)
+	if err != nil {
+		return result, fmt.Errorf("%s: %w", input.Path, err)
+	}
+
+	modelType := reflect.TypeOf(model)
+	models := reflect.MakeSlice(reflect.SliceOf(modelType), 0, importer.batchSize)
+	row := 1
+	var importErrors []error
+	workerCtx, cancelWorkers := context.WithCancelCause(ctx)
+	defer cancelWorkers(nil)
+	jobs := make(chan batchJob, importer.workers)
+	workerResults := runWorkers(workerCtx, importer.workers, jobs, func(workerCtx context.Context, job batchJob) batchResult {
+		if context.Cause(workerCtx) != nil {
+			return batchResult{rejected: job.rows}
+		}
+		dbResult := importer.db.WithContext(workerCtx).
+			Clauses(clause.OnConflict{DoNothing: true}).
+			CreateInBatches(job.models, importer.batchSize)
+		if dbResult.Error != nil {
+			err := fmt.Errorf("%s: insert batch ending at row %d: %w", input.Path, job.endRow, dbResult.Error)
+			cancelWorkers(err)
+			return batchResult{rejected: job.rows, err: err}
+		}
+		return batchResult{
+			inserted:   dbResult.RowsAffected,
+			duplicates: job.rows - dbResult.RowsAffected,
+		}
+	})
+
+	type aggregate struct {
+		inserted   int64
+		duplicates int64
+		rejected   int64
+		errors     []error
+	}
+	aggregated := make(chan aggregate, 1)
+	go func() {
+		var total aggregate
+		for batch := range workerResults {
+			total.inserted += batch.inserted
+			total.duplicates += batch.duplicates
+			total.rejected += batch.rejected
+			if batch.err != nil {
+				total.errors = append(total.errors, batch.err)
+			}
+		}
+		aggregated <- total
+	}()
+
+	queue := func() bool {
+		if models.Len() == 0 {
+			return true
+		}
+		job := batchJob{models: models.Interface(), rows: int64(models.Len()), endRow: row}
+		select {
+		case jobs <- job:
+			models = reflect.MakeSlice(models.Type(), 0, importer.batchSize)
+			return true
+		case <-workerCtx.Done():
+			result.Rejected += job.rows
+			return false
+		}
+	}
+
+	producing := true
+	for {
+		if context.Cause(workerCtx) != nil {
+			result.Rejected += int64(models.Len())
+			producing = false
+			break
+		}
+		row++
+		record, readErr := reader.Read()
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			result.Rejected++
+			importErrors = append(importErrors, fmt.Errorf("%s row %d: %w", input.Path, row, readErr))
+			continue
+		}
+		converted, convertErr := fieldMeta.RecordToModel(importer.factory.New(input.Model), record)
+		if convertErr != nil {
+			result.Rejected++
+			importErrors = append(importErrors, fmt.Errorf("%s row %d: %w", input.Path, row, convertErr))
+			continue
+		}
+		models = reflect.Append(models, reflect.ValueOf(converted))
+		if models.Len() == importer.batchSize {
+			if !queue() {
+				producing = false
+				break
+			}
+		}
+	}
+	if producing {
+		_ = queue()
+	}
+	close(jobs)
+	workerTotal := <-aggregated
+	result.Inserted += workerTotal.inserted
+	result.Duplicates += workerTotal.duplicates
+	result.Rejected += workerTotal.rejected
+	importErrors = append(importErrors, workerTotal.errors...)
+	if cause := context.Cause(workerCtx); cause != nil && len(workerTotal.errors) == 0 {
+		importErrors = append(importErrors, fmt.Errorf("%s: %w", input.Path, cause))
+	}
+	return result, errors.Join(importErrors...)
 }

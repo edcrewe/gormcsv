@@ -2,10 +2,15 @@ name: test
 
 on:
   push:
+    branches:
+      - master
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  sqlite:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code
@@ -15,6 +20,43 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: "1.25.0"
+          cache: true
 
-      - name: Run tests
-        run: go test -v ./...
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test with race detector
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          args: --config=golangci-lint.yml
+
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.25.0"
+          cache: true
+
+      - name: Cache embedded PostgreSQL
+        uses: actions/cache@v5
+        with:
+          path: ~/.embedded-postgres-go
+          key: ${{ runner.os }}-${{ runner.arch }}-postgres-18.3.0
+
+      - name: Test against embedded PostgreSQL
+        env:
+          GORMCSV_TEST_POSTGRES: "1"
+        run: go test -race -count=1 ./importcsv

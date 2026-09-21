@@ -1,27 +1,32 @@
-.PHONY: help build run test clean
+VERSION := 0.3.0
+
+.PHONY: help build test test-postgres lint docker clean
 
 help:
-	@echo "build - build docker  image"
-	@echo "run - build gormcsv and run demo import of csv file"
-	@echo "test - unit and integration tests"
-	@echo "clean - remove all build, test, coverage and build artifacts"
-	@echo "lint - lint the code"
+	@printf '%s\n' \
+		'build   build the gormcsv binary' \
+		'test    run tests with the race detector' \
+		'test-postgres  run importer tests against embedded PostgreSQL' \
+		'lint    run go vet and golangci-lint' \
+		'docker  build the container image' \
+		'clean   remove local build artifacts'
 
-build: clean
-	docker build -t gormcsv:0.2.0 .
-	docker run -a stdout --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.2.0 bash -c "go build -buildvcs=false -v"
+build:
+	go build -trimpath -o gormcsv .
+
+test:
+	go test -race ./...
+
+test-postgres:
+	GORMCSV_TEST_POSTGRES=1 go test -race -count=1 ./importcsv
+
+lint:
+	test -z "$$(gofmt -l .)"
+	go vet ./...
+	golangci-lint run --config=golangci-lint.yml
+
+docker:
+	docker build --tag gormcsv:$(VERSION) .
 
 clean:
-	docker stop gormcsv || exit 0
-	docker rm gormcsv || exit 0
-	docker volume prune -f
-
-run: clean 
-	docker run -a stdout --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.2.0 bash -c "go build -buildvcs=false;chmod 755 gormcsv;./gormcsv importcsv -f static/fixtures/Country.csv"
-
-test: clean
-	docker run -a stdout --name gormcsv gormcsv:0.2.0 bash -c "go build -buildvcs=false;go test -v ./..."
-
-lint: clean
-	docker run -d --name gormcsv -v ${PWD}:/go/src/github.com/edcrewe/gormcsv gormcsv:0.2.0 bash -c "golangci-lint run ./... -c golangci-lint.yml -v --timeout 5m"
-	docker logs -f gormcsv
+	rm -f gormcsv coverage.out

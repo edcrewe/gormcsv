@@ -2,9 +2,10 @@ package inspectcsv
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/edcrewe/gormcsv/meta"
 )
@@ -12,13 +13,13 @@ import (
 func TestGenerate(t *testing.T) {
 	// Create mock CSVMeta
 	csvMeta := meta.CSVMeta{
-		Now:    time.Now(),
-		Models: map[string]string{"country": "Country"},
+		UsesTime: true,
+		Models:   map[string]string{"country": "Country"},
 		Fields: map[string][]meta.Field{
 			"Country": {
 				{Name: "Name", Type: "string", Tag: ""},
 				{Name: "Code", Type: "string", Tag: ""},
-				{Name: "Population", Type: "int64", Tag: ""},
+				{Name: "CreatedAt", Type: "time.Time", Tag: ""},
 			},
 		},
 	}
@@ -34,14 +35,12 @@ func TestGenerate(t *testing.T) {
 	// Check output contains expected strings
 	expectedStrings := []string{
 		"package importcsv",
-		"type ModelFactory struct",
-		"factory.models = append(factory.models, \"country\")",
+		"NewModelFactory",
+		"\"country\": func() any",
 		"type Country struct",
-		"Name string",
-		"Code string",
-		"Population int64",
-		"case \"country\":",
-		"return &Country{}",
+		"Name      string",
+		"Code      string",
+		"CreatedAt time.Time",
 	}
 
 	for _, expected := range expectedStrings {
@@ -53,5 +52,23 @@ func TestGenerate(t *testing.T) {
 	// Make sure it doesn't contain sqlite import
 	if strings.Contains(output, "gorm.io/driver/sqlite") {
 		t.Errorf("Generated output should not contain sqlite driver import")
+	}
+}
+
+func TestGenerateFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "models.go")
+	csvMeta := meta.CSVMeta{
+		Models: map[string]string{"country": "Country"},
+		Fields: map[string][]meta.Field{"Country": {{Name: "Name", Type: "string"}}},
+	}
+	if err := GenerateFile(csvMeta, path); err != nil {
+		t.Fatalf("GenerateFile: %v", err)
+	}
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contents), "type Country struct") {
+		t.Errorf("generated file did not contain Country model:\n%s", contents)
 	}
 }

@@ -1,68 +1,65 @@
-// Base class equivalent = embedded Files for ModelCSV and CSVMeta
 package meta
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
-// IsDirectory checks if path is a directory
-func IsDirectory(path string) (bool, error) {
-	fileInfo, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-	return fileInfo.IsDir(), err
+// CSVFile identifies a CSV input and the model name derived from its filename.
+type CSVFile struct {
+	Model string
+	Path  string
 }
 
-// FilesFetch return a map of lowercase filename without suffix vs file object from file or dir path
-func (mcsv *Files) FilesFetch(path string) (map[string]*os.File, error) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("The fixture file %s does not exist", path)
-	}
-	filesMap := map[string]*os.File{}
-	files := []*os.File{}
-	dir, err := IsDirectory(path)
+// CSVFiles returns CSV inputs in lexical order. It does not open the files, so
+// callers retain clear ownership of every file descriptor they acquire.
+func CSVFiles(path string) ([]CSVFile, error) {
+	info, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("inspect %q: %w", path, err)
 	}
-	cleanPath := filepath.Clean(path)
-	f, err := os.Open(cleanPath) // #nosec G304
-	if err != nil {
-		return nil, err
-	}
-	if !dir {
-		files = append(files, f)
-	} else {
-		fileInfos, err := f.Readdir(-1)
-		_ = f.Close()
-		for _, fileInfo := range fileInfos {
-			filePath := filepath.Join(path, fileInfo.Name())
-			dir, err := IsDirectory(filePath)
-			if err != nil {
-				return nil, err
-			}
-			if dir {
-				continue
-			}
-			cleanFilePath := filepath.Clean(filePath)
-			csvFile, err := os.Open(cleanFilePath) // #nosec G304
-			if err != nil {
-				return nil, err
-			}
-			files = append(files, csvFile)
-		}
+
+	if !info.IsDir() {
+		file, err := csvFile(path)
 		if err != nil {
 			return nil, err
 		}
+		return []CSVFile{file}, nil
 	}
-	for _, file := range files {
-		_, name := filepath.Split(file.Name())
-		parts := strings.Split(name, ".")
-		// name := strings.ToLower(parts[0])
-		filesMap[parts[0]] = file
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, fmt.Errorf("read directory %q: %w", path, err)
 	}
-	return filesMap, nil
+	files := make([]CSVFile, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".csv") {
+			continue
+		}
+		file, err := csvFile(filepath.Join(path, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, file)
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no CSV files found in %q", path)
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	return files, nil
+}
+
+func csvFile(path string) (CSVFile, error) {
+	ext := filepath.Ext(path)
+	if !strings.EqualFold(ext, ".csv") {
+		return CSVFile{}, fmt.Errorf("%q is not a CSV file", path)
+	}
+	name := strings.TrimSuffix(filepath.Base(path), ext)
+	if name == "" {
+		return CSVFile{}, fmt.Errorf("cannot derive model name from %q", path)
+	}
+	return CSVFile{Model: name, Path: filepath.Clean(path)}, nil
 }

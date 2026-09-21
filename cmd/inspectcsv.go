@@ -1,18 +1,3 @@
-// Copyright © 2019 Ed Crewe <edmundcrewe@gmail.com>
-// Cobra inspectcsv command wrapper
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
@@ -23,28 +8,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// inspectcsvCmd represents the inspectcsv command
-var inspectcsvCmd = &cobra.Command{
+var output string
+
+var inspectCSVCommand = &cobra.Command{
 	Use:   "inspectcsv",
-	Short: "Create models from CSV files",
-	Long:  `The data inspect command. CSV files must be named the same as the target Model / Table`,
-	Run: func(cmd *cobra.Command, args []string) {
-		Files, _ := cmd.Flags().GetString("files")
-		fmt.Printf("Inspect csv for %s to generate models.go\n", Files)
-		csvmeta := meta.CSVMeta{}
-		err := csvmeta.PopulateMeta(Files)
-		if err != nil {
-			fmt.Printf("Failed to determine the fields, cannot import due to error: %s\n", err)
-			return
+	Short: "Generate GORM models from CSV files",
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		if files == "" {
+			return fmt.Errorf("--files is required")
 		}
-		err = inspectcsv.GenerateFile(csvmeta, "importcsv/models.go")
-		if err != nil {
-			fmt.Printf("Failed to generate models.go from the CSV fields found, due to error: %s\n", err)
-			return
+		var csvMeta meta.CSVMeta
+		if err := csvMeta.PopulateMeta(files); err != nil {
+			return err
 		}
+		if err := inspectcsv.GenerateFile(csvMeta, output); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "generated %s\n", output); err != nil {
+			return fmt.Errorf("write generation result: %w", err)
+		}
+		return nil
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(inspectcsvCmd)
+	inspectCSVCommand.Flags().StringVarP(&output, "output", "o", "importcsv/models.go", "generated Go file")
+	rootCmd.AddCommand(inspectCSVCommand)
 }

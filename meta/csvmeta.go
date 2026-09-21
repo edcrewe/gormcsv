@@ -1,115 +1,209 @@
 package meta
 
 import (
-	"bufio"
-	_ "embed"
-	"encoding/csv"
 	"fmt"
 	"io"
-	"regexp"
+	"math"
+	"os"
+	"strconv"
 	"strings"
-	"time"
+	"unicode"
 )
 
-var mapLength = map[int]string{2: "8", 4: "16", 9: "32", 20: "64"}
-var keysLength = []int{2, 4, 9, 20}
-var typeStrings = []string{"bool", "date", "string"}
-var reNumber = regexp.MustCompile(`^[-+]?\d*\.?\d*$`)
-
-// PopulateMeta read a sample set of data from each CSV file and determine the fields and field types
-// Load that metadata to csvmeta struct Models and Fields
-func (csvmeta *CSVMeta) PopulateMeta(path string) error {
-	csvmeta.Now = time.Now()
-	filesMap, err := csvmeta.FilesFetch(path)
-	csvmeta.Models = map[string]string{}
-	csvmeta.Fields = map[string][]Field{}
+// PopulateMeta inspects each CSV file while preserving header order.
+func (csvMeta *CSVMeta) PopulateMeta(path string) error {
+	files, err := CSVFiles(path)
 	if err != nil {
-		return fmt.Errorf("Failed to find CSV file(s) from %s, Due to %s", path, err)
+		return err
 	}
-	sample := 5
-	for model, csvFile := range filesMap {
-		names := map[string][]string{}
-		reader := csv.NewReader(bufio.NewReader(csvFile))
-		modelLower := strings.ToLower(model)
-		csvmeta.Models[modelLower] = model
-		var keys []string
-		if reader != nil {
-			for i := 1; i <= sample; i++ {
-				record, error := reader.Read()
-				for index := range record {
-					if i == 1 {
-						keys = make([]string, len(record))
-						copy(keys, record)
-						field := strings.Title(strings.ToLower(keys[index]))
-						if field != "" && field != "Model" {
-							names[field] = []string{}
-						}
-					} else {
-						if len(keys) > index {
-							field := strings.Title(strings.ToLower(keys[index]))
-							if field != "" && field != "Model" {
-								names[field] = append(names[field], record[index])
-							}
-						}
-					}
-				}
-				if error == io.EOF {
-					i = sample
-				} else if error != nil {
-					return fmt.Errorf("Failed to inspect %s due to %s", model, error)
-				}
-			}
-		}
-		for key, values := range names {
-			field := csvmeta.GetField(key, values)
-			csvmeta.Fields[model] = append(csvmeta.Fields[model], field)
+	csvMeta.Models = make(map[string]string, len(files))
+	csvMeta.Fields = make(map[string][]Field, len(files))
+	csvMeta.UsesTime = false
+
+	for _, input := range files {
+		if err := csvMeta.populateFile(input); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-// GetField take a name and list of values from CSV then test the values to work out the type
-func (csvmeta *CSVMeta) GetField(name string, valueStrings []string) Field {
-	var f = Field{Name: name}
-	var typeStr = ""
-	var vLength = 0
-	for _, valueStr := range valueStrings {
-		if typeStr != "string" && reNumber.MatchString(valueStr) {
-			if strings.Index(valueStr, ".") > -1 {
-				typeStr = "float"
-			}
-			if typeStr != "float" {
-				if strings.HasPrefix(valueStr, "-") || strings.HasPrefix(valueStr, "+") {
-					typeStr = "uint"
-				} else if typeStr != "uint" {
-					typeStr = "int"
-				}
-			}
-			if len(valueStr) > vLength {
-				vLength = len(valueStr)
-			}
+func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
+	file, err := os.Open(input.Path) // #nosec G304 -- path is explicitly supplied by the user
+	if err != nil {
+		return fmt.Errorf("open %q: %w", input.Path, err)
+	}
+	defer func() { _ = file.Close() }()
+
+	reader := NewCSVReader(file)
+	header, err := reader.Read()
+	if err != nil {
+		return fmt.Errorf("read header from %q: %w", input.Path, err)
+	}
+	if len(header) == 0 {
+		return fmt.Errorf("CSV header in %q is empty", input.Path)
+	}
+	samples := make([]inference, len(header))
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
 		}
-		if typeStr == "" {
-			for _, typeString := range typeStrings {
-				_, err := csvmeta.Convert(valueStr, typeString)
-				if err == nil {
-					typeStr = typeString
-					break
-				}
-			}
+		if err != nil {
+			return fmt.Errorf("inspect %q: %w", input.Path, err)
+		}
+		for column, value := range record {
+			samples[column].add(value)
 		}
 	}
-	if typeStr != "string" && typeStr != "date" && typeStr != "bool" {
-		for _, length := range keysLength {
-			if vLength <= length {
-				typeStr = typeStr + mapLength[length]
-				break
-			}
-		}
-		if typeStr == "float8" || typeStr == "float16" {
-			typeStr = "float32"
-		}
+
+	modelName := exportedName(input.Model)
+	if modelName == "" {
+		return fmt.Errorf("filename %q does not produce a valid Go model name", input.Path)
 	}
-	f.Type = typeStr
-	return f
+	csvMeta.Models[strings.ToLower(input.Model)] = modelName
+	fields := make([]Field, 0, len(header))
+	seen := make(map[string]struct{}, len(header))
+	for column, heading := range header {
+		name := exportedName(heading)
+		if name == "" || name == "Model" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			return fmt.Errorf("CSV header %q produces duplicate Go field %q", heading, name)
+		}
+		seen[name] = struct{}{}
+		field := samples[column].field(name)
+		if field.Type == "time.Time" {
+			csvMeta.UsesTime = true
+		}
+		fields = append(fields, field)
+	}
+	csvMeta.Fields[modelName] = fields
+	return nil
+}
+
+func exportedName(value string) string {
+	parts := strings.FieldsFunc(strings.TrimSpace(value), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	var result strings.Builder
+	for _, part := range parts {
+		runes := []rune(part)
+		if len(runes) == 0 {
+			continue
+		}
+		result.WriteRune(unicode.ToUpper(runes[0]))
+		result.WriteString(string(runes[1:]))
+	}
+	name := result.String()
+	if name != "" && unicode.IsDigit([]rune(name)[0]) {
+		name = "Field" + name
+	}
+	return name
+}
+
+// GetField infers a Go type from sampled strings.
+func (csvMeta *CSVMeta) GetField(name string, values []string) Field {
+	var sample inference
+	for _, value := range values {
+		sample.add(value)
+	}
+	return sample.field(name)
+}
+
+type inference struct {
+	count       int
+	allBool     bool
+	allTime     bool
+	allSigned   bool
+	allUnsigned bool
+	allFloat    bool
+	minSigned   int64
+	maxSigned   int64
+	maxUnsigned uint64
+}
+
+func (sample *inference) add(value string) {
+	if value == "" {
+		return
+	}
+	if sample.count == 0 {
+		sample.allBool = true
+		sample.allTime = true
+		sample.allSigned = true
+		sample.allUnsigned = true
+		sample.allFloat = true
+	}
+	sample.count++
+	if _, err := strconv.ParseBool(value); err != nil {
+		sample.allBool = false
+	}
+	if _, err := parseTime(value); err != nil {
+		sample.allTime = false
+	}
+	if parsed, err := strconv.ParseInt(value, 10, 64); err != nil {
+		sample.allSigned = false
+	} else if sample.count == 1 {
+		sample.minSigned, sample.maxSigned = parsed, parsed
+	} else {
+		sample.minSigned = min(sample.minSigned, parsed)
+		sample.maxSigned = max(sample.maxSigned, parsed)
+	}
+	if parsed, err := strconv.ParseUint(value, 10, 64); err != nil {
+		sample.allUnsigned = false
+	} else {
+		sample.maxUnsigned = max(sample.maxUnsigned, parsed)
+	}
+	if _, err := strconv.ParseFloat(value, 64); err != nil {
+		sample.allFloat = false
+	}
+}
+
+func (sample inference) field(name string) Field {
+	if sample.count == 0 {
+		return Field{Name: name, Type: "string"}
+	}
+	if sample.allBool {
+		return Field{Name: name, Type: "bool"}
+	}
+	if sample.allTime {
+		return Field{Name: name, Type: "time.Time"}
+	}
+	if sample.allSigned {
+		return Field{Name: name, Type: signedType(sample.minSigned, sample.maxSigned)}
+	}
+	if sample.allUnsigned {
+		return Field{Name: name, Type: unsignedType(sample.maxUnsigned)}
+	}
+	if sample.allFloat {
+		return Field{Name: name, Type: "float64"}
+	}
+	return Field{Name: name, Type: "string"}
+}
+
+func signedType(minimum, maximum int64) string {
+	switch {
+	case minimum >= math.MinInt8 && maximum <= math.MaxInt8:
+		return "int8"
+	case minimum >= math.MinInt16 && maximum <= math.MaxInt16:
+		return "int16"
+	case minimum >= math.MinInt32 && maximum <= math.MaxInt32:
+		return "int32"
+	default:
+		return "int64"
+	}
+}
+
+func unsignedType(maximum uint64) string {
+	switch {
+	case maximum <= math.MaxUint8:
+		return "uint8"
+	case maximum <= math.MaxUint16:
+		return "uint16"
+	case maximum <= math.MaxUint32:
+		return "uint32"
+	default:
+		return "uint64"
+	}
 }
