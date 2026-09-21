@@ -1,45 +1,78 @@
-// Unit tests for fieldmeta - importcsv reflection subpackage
 package meta
 
 import (
-	"fmt"
-	"strings"
 	"testing"
+	"time"
 )
 
-// TestConvert test the FieldMeta.Convert function
-func TestConvert(t *testing.T) {
-	meta := FieldMeta{}
+type mappedModel struct {
+	Name      string
+	Count     int16
+	Enabled   bool
+	Price     float64
+	CreatedAt time.Time
+}
 
-	type TableTest struct {
-		input   string
-		convert string
-		pass    bool
+func TestRecordToModel(t *testing.T) {
+	fieldMeta, err := NewFieldMeta(&mappedModel{}, []string{"enabled", "name", "price", "count", "createdat"})
+	if err != nil {
+		t.Fatalf("NewFieldMeta: %v", err)
 	}
+	converted, err := fieldMeta.RecordToModel(&mappedModel{}, []string{"true", "example", "12.5", "42", "2026-09-21"})
+	if err != nil {
+		t.Fatalf("RecordToModel: %v", err)
+	}
+	model := converted.(*mappedModel)
+	if model.Name != "example" || model.Count != 42 || !model.Enabled || model.Price != 12.5 {
+		t.Errorf("unexpected model: %+v", model)
+	}
+	if want := time.Date(2026, 9, 21, 0, 0, 0, 0, time.UTC); !model.CreatedAt.Equal(want) {
+		t.Errorf("CreatedAt = %v, want %v", model.CreatedAt, want)
+	}
+}
 
-	var tableTests = []TableTest{
-		{"123", "int", true},
-		{"214748364234123456789", "int", false},
-		{"-123", "int", true},
-		{"-123", "int8", true},
-		{"32770", "int16", false},
-		{"2147483646", "int32", true},
-		{"214748364234", "int32", false},
-		{"13213.3427734375", "float32", true},
-		{"false", "bool", true},
+func TestRecordToModelEmptyValuesUseZeroValues(t *testing.T) {
+	fieldMeta, err := NewFieldMeta(&mappedModel{}, []string{"name", "count", "enabled", "price"})
+	if err != nil {
+		t.Fatal(err)
 	}
+	converted, err := fieldMeta.RecordToModel(&mappedModel{}, []string{"", "", "", ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := converted.(*mappedModel); *got != (mappedModel{}) {
+		t.Errorf("got %+v, want zero value", got)
+	}
+}
 
-	for _, test := range tableTests {
-		output, error := meta.Convert(test.input, test.convert)
-		//fmt.Println(fmt.Sprint(output))
-		if (fmt.Sprint(output) == test.input && !test.pass) || (fmt.Sprint(output) != test.input && test.pass) {
-			t.Errorf("meta.Convert %s (%s) == %v is not %v %s", test.convert, test.input,
-				output, test.pass, error)
-		}
+func TestNewFieldMetaRejectsInvalidHeaders(t *testing.T) {
+	tests := []struct {
+		name   string
+		header []string
+	}{
+		{name: "empty", header: nil},
+		{name: "blank", header: []string{""}},
+		{name: "duplicate", header: []string{"name", "NAME"}},
+		{name: "unknown", header: []string{"missing"}},
 	}
-	// DateTime Sprint not directly comparable so do separate test
-	output, error := meta.Convert("2006-01-02T15:04:05", "date")
-	if !strings.HasPrefix(fmt.Sprint(output), "2006-01-02") {
-		t.Errorf("meta.Convert date failed. %s", error)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := NewFieldMeta(&mappedModel{}, test.header); err == nil {
+				t.Fatal("expected an error")
+			}
+		})
+	}
+}
+
+func TestRecordToModelRejectsConversionAndShortRows(t *testing.T) {
+	fieldMeta, err := NewFieldMeta(&mappedModel{}, []string{"name", "count"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fieldMeta.RecordToModel(&mappedModel{}, []string{"name", "invalid"}); err == nil {
+		t.Fatal("expected conversion error")
+	}
+	if _, err := fieldMeta.RecordToModel(&mappedModel{}, []string{"name"}); err == nil {
+		t.Fatal("expected short-row error")
 	}
 }

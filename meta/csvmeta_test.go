@@ -1,96 +1,81 @@
 package meta
 
 import (
-	"fmt"
-	"strings"
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 )
 
-// TestPopulateMeta test CSVMeta.PopulateMeta
-func TestPopulateMeta(t *testing.T) {
-	csvmeta := CSVMeta{}
-	path := "../static/fixtures"
-	err := csvmeta.PopulateMeta(path)
-	if err != nil {
-		fmt.Printf("Failed to populate meta for path %s due to:\n %s\n", path, err)
+func TestGetField(t *testing.T) {
+	tests := []struct {
+		name   string
+		values []string
+		want   string
+	}{
+		{name: "empty", values: []string{"", ""}, want: "string"},
+		{name: "bool", values: []string{"true", "False"}, want: "bool"},
+		{name: "date", values: []string{"2026-09-21", "2024-01-01"}, want: "time.Time"},
+		{name: "signed", values: []string{"-123", "24", "201"}, want: "int16"},
+		{name: "int64", values: []string{"214748364234", "234234234233"}, want: "int64"},
+		{name: "uint64", values: []string{"18446744073709551615"}, want: "uint64"},
+		{name: "float", values: []string{"13213.33", "-123.2"}, want: "float64"},
+		{name: "string", values: []string{"RF024", "WA041"}, want: "string"},
 	}
-	type TableTest struct {
-		model   string
-		field   string
-		typeStr string
-		pass    bool
-	}
-
-	var tableTests = []TableTest{
-		{"Country", "Name", "string", true},
-		{"Country", "Code", "string", true},
-		{"Country", "Latitude", "float32", true},
-		{"Country", "Alias", "int16", false},
-		//		{"item","DESCRIPTION", "string", true},
-		//		{"item","QUANTITY", "int16", true},
-		{"TestTypes", "Wordcol", "string", true},
-		{"TestTypes", "Codecol", "int8", false},
-		{"TestTypes", "Textcol", "string", true},
-		{"TestTypes", "Numbercol", "float32", true},
-		{"TestTypes", "Intcol", "int16", true},
-		{"TestTypes", "Boolcol", "bool", true},
-		//		{"testtypes","datecol", "date", true},
-	}
-
-	for _, test := range tableTests {
-		fields, ok := csvmeta.Fields[test.model]
-		if !ok {
-			t.Errorf("csvmeta.Fields is missing the model %s", test.model)
-			continue
-		}
-		// fmt.Print(csvmeta.Fields[test.model])
-		found := false
-		for _, field := range fields {
-			if field.Name == test.field {
-				found = true
-				if field.Type == test.typeStr && !test.pass || (field.Type != test.typeStr && test.pass) {
-					t.Errorf("csvmeta.Fields[%s]-%s %s == %v is not %v", test.model, test.field, test.typeStr,
-						field.Type, test.pass)
-				}
-				break
+	var csvMeta CSVMeta
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := csvMeta.GetField("Value", test.values).Type; got != test.want {
+				t.Errorf("GetField() = %q, want %q", got, test.want)
 			}
-		}
-		if !found {
-			t.Errorf("csvmeta.Fields[%s] is missing the field %s", test.model, test.field)
-		}
+		})
 	}
 }
 
-// TestGetField test the CSVMeta.GetField function
-func TestGetField(t *testing.T) {
-	csvmeta := CSVMeta{}
-
-	type TableTest struct {
-		input   string
-		typeStr string
-		pass    bool
+func TestExportedNameStartsWithLetter(t *testing.T) {
+	if got := exportedName("2026_sales"); got != "Field2026Sales" {
+		t.Errorf("exportedName() = %q, want Field2026Sales", got)
 	}
+}
 
-	var tableTests = []TableTest{
-		{"23,24,55", "int8", true},
-		{"21474836423412345,234567,23423423", "int64", true},
-		{"-123,24,+12", "uint16", true},
-		{"-123,24,201", "int16", false},
-		{"32770,234234", "int16", false},
-		{"214748366,1234562", "int32", true},
-		{"214748364234,234234234233", "int32", false},
-		{"13213.33,1234.23,-123123", "float32", true},
-		{"2006-01-02T15:04:05", "date", true},
-		{"false", "bool", true},
+func TestPopulateMetaPreservesHeaderOrder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "event-log.csv")
+	contents := "event_name,event_date,total-count\nlaunch,2026-09-21,-12\n"
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
 	}
+	var csvMeta CSVMeta
+	if err := csvMeta.PopulateMeta(path); err != nil {
+		t.Fatalf("PopulateMeta: %v", err)
+	}
+	if got := csvMeta.Models["event-log"]; got != "EventLog" {
+		t.Errorf("model = %q, want EventLog", got)
+	}
+	want := []Field{
+		{Name: "EventName", Type: "string"},
+		{Name: "EventDate", Type: "time.Time"},
+		{Name: "TotalCount", Type: "int8"},
+	}
+	if got := csvMeta.Fields["EventLog"]; !reflect.DeepEqual(got, want) {
+		t.Errorf("fields = %#v, want %#v", got, want)
+	}
+	if !csvMeta.UsesTime {
+		t.Error("UsesTime is false, want true")
+	}
+}
 
-	for _, test := range tableTests {
-		input := strings.Split(test.input, ",")
-		output := csvmeta.GetField("test", input)
-		//fmt.Println(fmt.Sprint(output))
-		if output.Type == test.typeStr && !test.pass || (output.Type != test.typeStr && test.pass) {
-			t.Errorf("csvmeta.GetField (%s) %s == %v is not %v", test.input, test.typeStr,
-				output.Type, test.pass)
+func TestCSVFilesFiltersAndSorts(t *testing.T) {
+	directory := t.TempDir()
+	for _, name := range []string{"B.csv", "A.CSV", "ignored.txt"} {
+		if err := os.WriteFile(filepath.Join(directory, name), []byte("name\n"), 0o600); err != nil {
+			t.Fatal(err)
 		}
+	}
+	files, err := CSVFiles(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 || files[0].Model != "A" || files[1].Model != "B" {
+		t.Errorf("unexpected files: %#v", files)
 	}
 }

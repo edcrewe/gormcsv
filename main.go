@@ -14,8 +14,16 @@
 
 package main
 
-import "github.com/edcrewe/gormcsv/cmd"
+import (
+	"fmt"
+	"os"
+
+	"github.com/edcrewe/gormcsv/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	if err := cmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

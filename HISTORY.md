@@ -1,11 +1,15 @@
 # Changelog
 
-## 0.3.0 - Concurrent Batch Loading - 21 Sept 2026
+## 0.3.0 - Batch Loading and tidy up - 21 Sept 2026
 
-* Add concurrent processing and batch-insertion to `importcsv` for significantly improved performance with large CSV files.
-  - Implements a worker pool pattern for parallel parsing and database inserts.
-  - Groups rows into batches of 1000 for efficient bulk GORM insertion.
-  - Intelligent fallback to serial insertion per-batch if constraint errors (like duplicates) are encountered, ensuring valid rows are still loaded.
+* Add configurable GORM batch insertion with a bounded concurrent writer pool.
+* Map records directly from validated CSV headers without relying on map order.
+* Return structured counts and errors for partial imports.
+* Skip duplicate records portably without retrying failed batches row by row.
+* Generate formatted models using deterministic, constant-memory type inference.
+* Isolate database state in tests and verify imported values as well as counts.
+* Add opt-in embedded PostgreSQL integration tests for concurrent batch writes.
+* Modernise the CLI, container build, lint configuration, and CI checks.
 
 ## 0.2.0 - Upgrade to GORM v2 and Go 1.25 - 19 Sept 2026
 

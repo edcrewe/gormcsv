@@ -1,103 +1,114 @@
 package importcsv
 
 import (
-	"encoding/csv"
-	"fmt"
-	"os"
+	"context"
 	"path/filepath"
-	"reflect"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-type BatchUser struct {
-	ID   uint
-	Name string
-}
-
-func TestDynamicBatch(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?mode=memory"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	db.AutoMigrate(&BatchUser{})
-
-	dummy := &BatchUser{}
-	modelType := reflect.TypeOf(dummy)
-	sliceType := reflect.SliceOf(modelType)
-	sliceVal := reflect.MakeSlice(sliceType, 0, 0)
-
-	u1 := &BatchUser{Name: "Alice"}
-	u2 := &BatchUser{Name: "Bob"}
-	sliceVal = reflect.Append(sliceVal, reflect.ValueOf(u1))
-	sliceVal = reflect.Append(sliceVal, reflect.ValueOf(u2))
-
-	res := db.Create(sliceVal.Interface())
-	if res.Error != nil {
-		t.Fatalf("GORM create error: %v", res.Error)
-	}
-	if res.RowsAffected != 2 {
-		t.Fatalf("Expected 2 rows affected, got %d", res.RowsAffected)
-	}
-}
-
-// TestWorkerPipelineMultiBatch generates a CSV with 2100 rows (spanning three
-// batches of 1000) and imports it via ImportCSV. It verifies the full pipeline
-// including the concurrent job-feeder goroutine, worker pool, and results
-// collection.
-func TestWorkerPipelineMultiBatch(t *testing.T) {
-	const rowCount = 2100
-
-	tmpDir := t.TempDir()
-	csvPath := filepath.Join(tmpDir, "TestTypes.csv")
-	f, err := os.Create(csvPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := csv.NewWriter(f)
-	if err := w.Write([]string{
-		"wordcol", "codecol", "textcol", "bigtextcol",
-		"numbercol", "intcol", "boolcol", "datecol",
-	}); err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < rowCount; i++ {
-		if err := w.Write([]string{
-			fmt.Sprintf("word%d", i),
-			fmt.Sprintf("CD%04d", i),
-			"test text",
-			"test big text",
-			"1.23",
-			"42",
-			"true",
-			"2024-01-01T00:00:00",
-		}); err != nil {
-			t.Fatal(err)
+func TestWorkerPoolProcessesBatchesConcurrently(t *testing.T) {
+	const (
+		workerCount = 4
+		jobCount    = 20
+	)
+	jobs := make(chan batchJob)
+	var active atomic.Int32
+	var maximum atomic.Int32
+	results := runWorkers(context.Background(), workerCount, jobs, func(_ context.Context, job batchJob) batchResult {
+		current := active.Add(1)
+		for {
+			observed := maximum.Load()
+			if current <= observed || maximum.CompareAndSwap(observed, current) {
+				break
+			}
 		}
+		time.Sleep(5 * time.Millisecond)
+		active.Add(-1)
+		return batchResult{inserted: job.rows}
+	})
+
+	go func() {
+		defer close(jobs)
+		for index := 0; index < jobCount; index++ {
+			jobs <- batchJob{rows: 1}
+		}
+	}()
+
+	var inserted int64
+	for result := range results {
+		inserted += result.inserted
 	}
-	w.Flush()
-	if err := w.Error(); err != nil {
+	if inserted != jobCount {
+		t.Errorf("inserted %d jobs, want %d", inserted, jobCount)
+	}
+	if maximum.Load() < 2 {
+		t.Errorf("maximum concurrency was %d, want at least 2", maximum.Load())
+	}
+}
+
+func TestWorkerPoolDrainsMoreResultsThanItsBuffer(t *testing.T) {
+	const jobCount = 250
+	jobs := make(chan batchJob, 1)
+	results := runWorkers(context.Background(), 2, jobs, func(_ context.Context, job batchJob) batchResult {
+		return batchResult{inserted: job.rows}
+	})
+	go func() {
+		defer close(jobs)
+		for range jobCount {
+			jobs <- batchJob{rows: 1}
+		}
+	}()
+
+	var completed int64
+	for result := range results {
+		completed += result.inserted
+	}
+	if completed != jobCount {
+		t.Errorf("completed %d jobs, want %d", completed, jobCount)
+	}
+}
+
+func TestResolveWorkerCount(t *testing.T) {
+	sqliteDB, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "sqlite.db")), &gorm.Config{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-
-	mcsv := ModelCSV{}
-	db := mcsv.ConnectDB()
-	// Ensure the schema exists before counting so GORM does not log a warning.
-	mcsv.CreateSchema(db, MakeModels())
-
-	var before int64
-	db.Table("test_types").Count(&before)
-
-	mcsv.ImportCSV(tmpDir)
-
-	var after int64
-	db.Table("test_types").Count(&after)
-
-	added := after - before
-	if added < rowCount {
-		t.Errorf("expected at least %d rows added, got %d", rowCount, added)
+	closeDB(t, sqliteDB)
+	if got := resolveWorkerCount(sqliteDB, 100); got != 1 {
+		t.Errorf("SQLite worker count = %d, want 1", got)
 	}
+
+	pooledDB, err := gorm.Open(namedDialector{
+		Dialector: sqlite.Open(filepath.Join(t.TempDir(), "pooled.db")),
+		name:      "postgres",
+	}, &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	closeDB(t, pooledDB)
+	sqlDB, err := pooledDB.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB.SetMaxOpenConns(3)
+	if got := resolveWorkerCount(pooledDB, 10); got != 3 {
+		t.Errorf("pooled worker count = %d, want 3", got)
+	}
+	if got := resolveWorkerCount(pooledDB, 2); got != 2 {
+		t.Errorf("configured worker count = %d, want 2", got)
+	}
+}
+
+type namedDialector struct {
+	gorm.Dialector
+	name string
+}
+
+func (dialector namedDialector) Name() string {
+	return dialector.name
 }

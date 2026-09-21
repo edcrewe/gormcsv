@@ -1,62 +1,80 @@
-// Base class equivalent = embedded Meta for FieldMeta and CSVMeta
 package meta
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
-	"strings"
 	"time"
 )
 
-/*
-Type converter for CSV string fields to correct basic type or time
-*/
-func (base *Meta) Convert(value string, to string) (interface{}, error) {
-	if to == "string" {
-		return value, nil
-	}
-	bits := 0
-	var err error
-	prefixes := []string{"float", "uint", "int"}
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(to, prefix) {
-			bitstr := to[len(prefix):]
-			if bitstr != "" {
-				bits, err = strconv.Atoi(bitstr)
-			}
-			if err != nil {
-				return nil, err
-			}
-			to = prefix
-		}
-	}
-	switch to {
-	case "float":
-		if value == "" {
-			return 0, nil
-		}
-		return strconv.ParseFloat(value, bits)
-	case "uint":
-		return strconv.ParseUint(value, 10, bits)
-	case "int":
-		return strconv.ParseInt(value, 10, bits)
-	case "bool":
-		return strconv.ParseBool(value)
-	case "date":
-		var err error
-		layouts := []string{"2006-01-02T15:04:05.000Z", "2006-01-02T15:04:05", "28/02/2003", "2002-01-23"}
-		var date time.Time
-		for _, layout := range layouts {
-			date, err = time.Parse(layout, value)
-			if err != nil {
-				continue
-			}
-			return date, nil
-		}
-		if err != nil {
-			return nil, fmt.Errorf("Could not convert time %s to %s, unknown date fmt", value, to)
-		}
+var timeType = reflect.TypeOf(time.Time{})
 
+var timeLayouts = []string{
+	time.RFC3339Nano,
+	"2006-01-02 15:04:05",
+	"2006-01-02",
+	"02/01/2006",
+}
+
+func convert(value string, target reflect.Type) (reflect.Value, error) {
+	if target == timeType {
+		parsed, err := parseTime(value)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		return reflect.ValueOf(parsed), nil
 	}
-	return nil, fmt.Errorf("Could not convert %s to %s", value, to)
+	if target.Kind() == reflect.Pointer {
+		if value == "" {
+			return reflect.Zero(target), nil
+		}
+		converted, err := convert(value, target.Elem())
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		pointer := reflect.New(target.Elem())
+		pointer.Elem().Set(converted)
+		return pointer, nil
+	}
+	if value == "" && target.Kind() != reflect.String {
+		return reflect.Zero(target), nil
+	}
+
+	converted := reflect.New(target).Elem()
+	var err error
+	switch target.Kind() {
+	case reflect.String:
+		converted.SetString(value)
+	case reflect.Bool:
+		var parsed bool
+		parsed, err = strconv.ParseBool(value)
+		converted.SetBool(parsed)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		var parsed int64
+		parsed, err = strconv.ParseInt(value, 10, target.Bits())
+		converted.SetInt(parsed)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		var parsed uint64
+		parsed, err = strconv.ParseUint(value, 10, target.Bits())
+		converted.SetUint(parsed)
+	case reflect.Float32, reflect.Float64:
+		var parsed float64
+		parsed, err = strconv.ParseFloat(value, target.Bits())
+		converted.SetFloat(parsed)
+	default:
+		return reflect.Value{}, fmt.Errorf("unsupported Go type %s", target)
+	}
+	if err != nil {
+		return reflect.Value{}, fmt.Errorf("convert %q to %s: %w", value, target, err)
+	}
+	return converted, nil
+}
+
+func parseTime(value string) (time.Time, error) {
+	for _, layout := range timeLayouts {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("convert %q to time.Time: unsupported date format", value)
 }

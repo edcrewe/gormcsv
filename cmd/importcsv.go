@@ -1,18 +1,3 @@
-// Copyright © 2019 Ed Crewe <edmundcrewe@gmail.com>
-// Cobra importcsv command wrapper
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
@@ -22,20 +7,55 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// importcsvCmd represents the importcsv command
-var importcsvCmd = &cobra.Command{
+var (
+	driver    string
+	dsn       string
+	batchSize int
+	workers   int
+)
+
+var importCSVCommand = &cobra.Command{
 	Use:   "importcsv",
-	Short: "Populates one or more tables from CSV file(s)",
-	Long: `The data import command. CSV files must be named the same as the target Model / Table
-           or else --model should be supplied`,
-	Run: func(cmd *cobra.Command, args []string) {
-		Files, _ := cmd.Flags().GetString("files")
-		fmt.Printf("Import csv for %s\n", Files)
-		mcsv := importcsv.ModelCSV{}
-		mcsv.ImportCSV(Files)
+	Short: "Populate database tables from CSV files",
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		if files == "" {
+			return fmt.Errorf("--files is required")
+		}
+		db, err := importcsv.OpenDatabase(driver, dsn)
+		if err != nil {
+			return err
+		}
+		sqlDB, err := db.DB()
+		if err != nil {
+			return fmt.Errorf("access database connection: %w", err)
+		}
+		defer func() { _ = sqlDB.Close() }()
+		if workers > 0 {
+			sqlDB.SetMaxOpenConns(workers)
+		}
+
+		importer, err := importcsv.New(db, importcsv.MakeModels(), importcsv.Config{
+			BatchSize: batchSize,
+			Workers:   workers,
+		})
+		if err != nil {
+			return err
+		}
+		result, importErr := importer.Import(cmd.Context(), files)
+		for _, file := range result.Files {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s: inserted %d, skipped %d duplicates, rejected %d\n",
+				file.Model, file.Inserted, file.Duplicates, file.Rejected); err != nil {
+				return fmt.Errorf("write import result: %w", err)
+			}
+		}
+		return importErr
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(importcsvCmd)
+	importCSVCommand.Flags().StringVar(&driver, "driver", "sqlite", "database driver: sqlite, postgres, or mysql")
+	importCSVCommand.Flags().StringVarP(&dsn, "dsn", "d", "gormcsv.db", "database connection string or SQLite path")
+	importCSVCommand.Flags().IntVarP(&batchSize, "batch-size", "b", 1000, "records per database batch")
+	importCSVCommand.Flags().IntVarP(&workers, "workers", "w", 4, "concurrent database writers (SQLite is always one)")
+	rootCmd.AddCommand(importCSVCommand)
 }

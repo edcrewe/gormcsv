@@ -1,4 +1,3 @@
-// Field interface uses reflect to get a map of field names and types for matching to CSV column names
 package meta
 
 import (
@@ -7,57 +6,84 @@ import (
 	"strings"
 )
 
-// SetMeta create index lookup for csv parsed line array fields
-// Match lowercased name to field name and create index map
-func (meta *FieldMeta) SetMeta(model interface{}, csvfields string) {
-	meta.fieldcols = make(map[string]int)
-	if csvfields == "" {
-		fmt.Println("Mapping failed because no csvfields were supplied")
-		return
+// NewFieldMeta validates a CSV header against the exported fields of model.
+// The special "model" column is ignored for compatibility with generated fixtures.
+func NewFieldMeta(model any, header []string) (*FieldMeta, error) {
+	modelType, err := structType(model)
+	if err != nil {
+		return nil, err
 	}
-	// meta.fieldtypes = make(map[string]reflect.Type)
-	csv := strings.Split(csvfields, ",")
-	structValue := reflect.ValueOf(model).Elem()
-	for i := 0; i < structValue.NumField(); i++ {
-		typeField := structValue.Type().Field(i)
-		// Need uppercase first letter for public attribute
-		field := strings.Title(strings.ToLower(typeField.Name))
-		for j := range csv {
-			if csv[j] == field {
-				meta.fieldcols[typeField.Name] = j
-				// Dont currently use field type or tag metadata
-				// meta.fieldtypes[typeField.Name] = typeField.Type
-				// tag := typeField.Tag
-			}
+	if len(header) == 0 {
+		return nil, fmt.Errorf("CSV header is empty")
+	}
+
+	fields := make([]mappedField, 0, len(header))
+	seen := make(map[string]struct{}, len(header))
+	for column, heading := range header {
+		heading = strings.TrimSpace(heading)
+		if heading == "" {
+			return nil, fmt.Errorf("CSV column %d has an empty heading", column+1)
 		}
+		key := strings.ToLower(heading)
+		if _, exists := seen[key]; exists {
+			return nil, fmt.Errorf("CSV heading %q is duplicated", heading)
+		}
+		seen[key] = struct{}{}
+		if strings.EqualFold(heading, "model") {
+			continue
+		}
+		field, ok := modelType.FieldByNameFunc(func(name string) bool {
+			return strings.EqualFold(name, heading)
+		})
+		if !ok || field.PkgPath != "" {
+			return nil, fmt.Errorf("CSV heading %q has no exported field in %s", heading, modelType)
+		}
+		fields = append(fields, mappedField{column: column, name: field.Name})
 	}
-	fmt.Println("Using field mapping = ", meta.fieldcols)
+	return &FieldMeta{fields: fields}, nil
 }
 
-// getMap map record values
-func (meta *FieldMeta) getMap(record []string) map[string]string {
-	mData := make(map[string]string)
-	for name, index := range meta.fieldcols {
-		mData[name] = record[index]
+// RecordToModel populates a new model using the mapping compiled from its header.
+func (meta *FieldMeta) RecordToModel(model any, record []string) (any, error) {
+	structValue, err := structValue(model)
+	if err != nil {
+		return nil, err
 	}
-	return mData
-}
-
-// RecordToModel populate Struct fields from maprecord
-func (meta *FieldMeta) RecordToModel(model interface{}, record []string) (interface{}, error) {
-	mData := meta.getMap(record)
-	structValue := reflect.ValueOf(model).Elem()
-	for name, value := range mData {
-		structFieldValue := structValue.FieldByName(strings.ToTitle(strings.ToLower(name)))
-		if structFieldValue.IsValid() {
-			fieldType := structFieldValue.Type()
-			converted, error := meta.Convert(value, fieldType.Name())
-			if error != nil {
-				return nil, error
-			}
-			val := reflect.ValueOf(converted)
-			structFieldValue.Set(val.Convert(fieldType))
+	for _, field := range meta.fields {
+		if field.column >= len(record) {
+			return nil, fmt.Errorf("record has %d columns, expected at least %d", len(record), field.column+1)
 		}
+		target := structValue.FieldByName(field.name)
+		if !target.IsValid() || !target.CanSet() {
+			return nil, fmt.Errorf("field %s cannot be set", field.name)
+		}
+		value, err := convert(record[field.column], target.Type())
+		if err != nil {
+			return nil, fmt.Errorf("column %q: %w", field.name, err)
+		}
+		target.Set(value)
 	}
 	return model, nil
+}
+
+func structType(model any) (reflect.Type, error) {
+	if model == nil {
+		return nil, fmt.Errorf("model is nil")
+	}
+	modelType := reflect.TypeOf(model)
+	if modelType.Kind() != reflect.Pointer || modelType.Elem().Kind() != reflect.Struct {
+		return nil, fmt.Errorf("model must be a pointer to a struct, got %T", model)
+	}
+	return modelType.Elem(), nil
+}
+
+func structValue(model any) (reflect.Value, error) {
+	if _, err := structType(model); err != nil {
+		return reflect.Value{}, err
+	}
+	value := reflect.ValueOf(model)
+	if value.IsNil() {
+		return reflect.Value{}, fmt.Errorf("model is a nil pointer")
+	}
+	return value.Elem(), nil
 }

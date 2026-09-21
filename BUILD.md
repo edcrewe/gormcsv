@@ -1,22 +1,26 @@
-GORMCSV
-=======
+# Build
 
-PreRequisites
--------------
+The normal development workflow uses the local Go toolchain:
 
-Machine with docker installed.
-
-Getting started
----------------
-
-> make help
-
-build - build docker image
-run - build the gormcsv executable and exit
-test - unit and integration tests
-clean - take down docker container
-
-So to get started you need to run
-
+```sh
+make test
+make test-postgres
+make lint
 make build
-make run
+```
+
+Go 1.25 or newer and a C compiler are required because the SQLite driver uses
+CGO.
+
+`make test-postgres` is optional and downloads an embedded PostgreSQL binary on
+its first run. Later runs reuse the archive cached in
+`~/.embedded-postgres-go`.
+
+Build the production container separately:
+
+```sh
+make docker
+```
+
+The multi-stage Docker build runs the test suite and copies only the compiled
+binary into the unprivileged runtime image.
