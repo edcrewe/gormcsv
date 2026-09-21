@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  sqlite:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code
