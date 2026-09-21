@@ -134,6 +134,11 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 		// channel and are collected with all other errors below.
 		go func() {
 			defer close(jobs)
+			// Discard the header row; PopulateMeta already consumed it for
+			// field-name and type inference via a separate file handle.
+			if _, err := reader.Read(); err != nil {
+				return
+			}
 			const batchSize = 1000
 			var currentBatch [][]string
 			for {

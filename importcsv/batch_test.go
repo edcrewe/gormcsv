@@ -85,6 +85,8 @@ func TestWorkerPipelineMultiBatch(t *testing.T) {
 
 	mcsv := ModelCSV{}
 	db := mcsv.ConnectDB()
+	// Ensure the schema exists before counting so GORM does not log a warning.
+	mcsv.CreateSchema(db, MakeModels())
 
 	var before int64
 	db.Table("test_types").Count(&before)
