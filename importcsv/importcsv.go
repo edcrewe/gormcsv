@@ -8,10 +8,11 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/edcrewe/gormcsv/meta"
-	"gorm.io/gorm"
 	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 type ModelCSV struct {
@@ -84,7 +85,28 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 		}
 		model := factory.New(name)
 		meta.SetMeta(model, mcsv.fields)
-		// Drop log errors and handle as aggregate msgs
+		// Process with worker pool for performance
+		var wg sync.WaitGroup
+		jobs := make(chan [][]string, 100)
+		results := make(chan batchResult, 100)
+		workerCount := 4 // Use 4 concurrent workers
+
+		for w := 0; w < workerCount; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				worker(jobs, results, &meta, db, factory, name)
+			}()
+		}
+
+		go func() {
+			wg.Wait()
+			close(results)
+		}()
+
+		batchSize := 1000
+		var currentBatch [][]string
+
 		for {
 			record, error := reader.Read()
 			if error == io.EOF {
@@ -93,21 +115,22 @@ func (mcsv *ModelCSV) ImportCSV(filePath string) {
 				errorlist = append(errorlist, error)
 				continue
 			}
-			model, error := meta.RecordToModel(factory.New(name), record)
-			if error != nil {
-				errorlist = append(errorlist, error)
-				continue
+			currentBatch = append(currentBatch, record)
+			if len(currentBatch) >= batchSize {
+				jobs <- currentBatch
+				currentBatch = nil
 			}
-			// Create
-			result := db.Create(model)
-			if result.Error != nil {
-				if strings.Contains(result.Error.Error(), "UNIQUE constraint failed") {
-					duplicates += 1
-				} else {
-					errorlist = append(errorlist, error)
-				}
-			} else {
-				count += 1
+		}
+		if len(currentBatch) > 0 {
+			jobs <- currentBatch
+		}
+		close(jobs)
+
+		for res := range results {
+			count += res.count
+			duplicates += res.duplicates
+			if len(res.errors) > 0 {
+				errorlist = append(errorlist, res.errors...)
 			}
 		}
 		fmt.Printf("Imported %d rows to %s\n", count, name)
