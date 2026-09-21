@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - Concurrent Batch Loading - 21 Sept 2026
 
 * Add concurrent processing and batch-insertion to `importcsv` for significantly improved performance with large CSV files.
   - Implements a worker pool pattern for parallel parsing and database inserts.
