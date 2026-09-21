@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+* Add concurrent processing and batch-insertion to `importcsv` for significantly improved performance with large CSV files.
+  - Implements a worker pool pattern for parallel parsing and database inserts.
+  - Groups rows into batches of 1000 for efficient bulk GORM insertion.
+  - Intelligent fallback to serial insertion per-batch if constraint errors (like duplicates) are encountered, ensuring valid rows are still loaded.
+
 ## 0.2.0 - Upgrade to GORM v2 and Go 1.25 - 19 Sept 2026
 
 * Migrate to modern GORM v2 (`gorm.io/gorm`) and updated driver plugins.
