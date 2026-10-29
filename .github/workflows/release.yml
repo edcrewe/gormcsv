@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers automatically when you push a tag like v0.3.1
+
+permissions:
+  contents: write # Required to create a release and upload assets
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25' # Change this to match your go.mod version if needed
+
+      - name: Build binary
+        run: |
+          CGO_ENABLED=1 go build -trimpath -o gormcsv .
+
+      - name: Install Syft (SBOM Generator)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM
+        run: |
+          syft . -o spdx-json=sbom.spdx.json
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            gormcsv
+            sbom.spdx.json
+          generate_release_notes: true
