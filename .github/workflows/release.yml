@@ -39,3 +39,6 @@ jobs:
             gormcsv
             sbom.spdx.json
           generate_release_notes: true
+
+      - name: Publish module to Go proxy
+        run: GOPROXY=proxy.golang.org go list -m "github.com/edcrewe/gormcsv@${GITHUB_REF_NAME}"
