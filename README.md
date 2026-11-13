@@ -39,19 +39,6 @@ golangci-lint run --config=golangci-lint.yml
 The same commands are available through `make build`, `make test`, and
 `make lint`.
 
-## Version
-
-```sh
-gormcsv version    # or gormcsv --version
-```
-
-This prints the tag the binary was built from, such as `v0.3.1`. Between tags it
-prints the latest tag, the number of commits since, and the short hash, such as
-`v0.3.1-2-ga6866f6`, with `-dirty` added for uncommitted changes. `make build`,
-`make docker`, and release builds stamp this from `git describe --tags`. A
-`go install ...@v0.3.1` reports the module version. A plain `go build` reports
-Go's pseudo-version, which also contains the commit hash.
-
 ### PostgreSQL integration tests
 
 Importer tests use isolated SQLite databases by default. To run the same tests
@@ -148,3 +135,7 @@ directory.
 ## History
 
 See [HISTORY.md](HISTORY.md).
+
+```sh
+gormcsv version    # or gormcsv --version
+```
