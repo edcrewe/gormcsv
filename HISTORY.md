@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+* `inspectcsv` skips rows with the wrong number of fields instead of failing the file, and
+  reports their line numbers on stderr, matching how `importcsv` rejects them.
+
 ## 0.3.0 - Batch Loading and tidy up - 21 Sept 2026
 
 * Add configurable GORM batch insertion with a bounded concurrent writer pool.

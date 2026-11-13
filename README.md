@@ -72,6 +72,11 @@ The filename determines the model name and each header determines a field name.
 For example, `order-item.csv` generates `OrderItem`, and `unit_price` generates
 `UnitPrice`.
 
+Rows whose field count differs from the header are left out of type inference,
+matching `importcsv`, which rejects them. The command lists their line numbers
+on stderr and still exits successfully. Other parse errors, such as unbalanced
+quotes, fail the inspection.
+
 Review generated models before using them for a long-lived schema. In
 particular, decide whether empty values should use pointers or nullable database
 types and add application-specific indexes or constraints.

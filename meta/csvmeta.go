@@ -1,6 +1,8 @@
 package meta
 
 import (
+	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -18,6 +20,7 @@ func (csvMeta *CSVMeta) PopulateMeta(path string) error {
 	}
 	csvMeta.Models = make(map[string]string, len(files))
 	csvMeta.Fields = make(map[string][]Field, len(files))
+	csvMeta.SkippedRows = make(map[string][]int)
 	csvMeta.UsesTime = false
 
 	for _, input := range files {
@@ -48,6 +51,12 @@ func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
 		record, err := reader.Read()
 		if err == io.EOF {
 			break
+		}
+		if line, ragged := raggedRecordLine(err); ragged {
+			// Match importcsv, which rejects such rows and keeps going, so one bad row
+			// does not block generating a model for the rest of the file.
+			csvMeta.SkippedRows[input.Path] = append(csvMeta.SkippedRows[input.Path], line)
+			continue
 		}
 		if err != nil {
 			return fmt.Errorf("inspect %q: %w", input.Path, err)
@@ -81,6 +90,17 @@ func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
 	}
 	csvMeta.Fields[modelName] = fields
 	return nil
+}
+
+// raggedRecordLine reports whether err is a record whose field count differs from the
+// header, and the line it started on. Other parse errors, such as bad quoting, can
+// leave the reader out of step with record boundaries, so they still fail inspection.
+func raggedRecordLine(err error) (int, bool) {
+	var parseErr *csv.ParseError
+	if errors.As(err, &parseErr) && errors.Is(parseErr.Err, csv.ErrFieldCount) {
+		return parseErr.StartLine, true
+	}
+	return 0, false
 }
 
 func exportedName(value string) string {
