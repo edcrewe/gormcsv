@@ -22,7 +22,7 @@ jobs:
 
       - name: Build binary
         run: |
-          CGO_ENABLED=1 go build -trimpath -o gormcsv .
+          CGO_ENABLED=1 go build -trimpath -ldflags "-X github.com/edcrewe/gormcsv/cmd.Version=${GITHUB_REF_NAME}" -o gormcsv .
 
       - name: Install Syft (SBOM Generator)
         run: |

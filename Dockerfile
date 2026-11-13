@@ -7,8 +7,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+ARG VERSION=devel
 RUN go test ./... \
-    && go build -trimpath -ldflags="-s -w" -o /out/gormcsv .
+    && go build -trimpath -ldflags="-s -w -X github.com/edcrewe/gormcsv/cmd.Version=${VERSION}" -o /out/gormcsv .
 
 FROM alpine:3.22
 

@@ -1,4 +1,6 @@
-VERSION := 0.3.0
+# Tag when on one, otherwise latest tag, commits since and short hash, e.g. v0.3.1-2-ga6866f6.
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo devel)
+LDFLAGS := -X github.com/edcrewe/gormcsv/cmd.Version=$(VERSION)
 
 .PHONY: help build test test-postgres lint docker clean
 
@@ -12,7 +14,7 @@ help:
 		'clean   remove local build artifacts'
 
 build:
-	go build -trimpath -o gormcsv .
+	go build -trimpath -ldflags "$(LDFLAGS)" -o gormcsv .
 
 test:
 	go test -race ./...
@@ -26,7 +28,7 @@ lint:
 	golangci-lint run --config=golangci-lint.yml
 
 docker:
-	docker build --tag gormcsv:$(VERSION) .
+	docker build --build-arg VERSION=$(VERSION) --tag gormcsv:$(VERSION) --tag gormcsv:latest .
 
 clean:
 	rm -f gormcsv coverage.out
