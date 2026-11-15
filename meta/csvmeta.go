@@ -21,6 +21,7 @@ func (csvMeta *CSVMeta) PopulateMeta(path string) error {
 	csvMeta.Models = make(map[string]string, len(files))
 	csvMeta.Fields = make(map[string][]Field, len(files))
 	csvMeta.SkippedRows = make(map[string][]int)
+	csvMeta.Warnings = make(map[string][]string)
 	csvMeta.UsesTime = false
 
 	for _, input := range files {
@@ -74,9 +75,14 @@ func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
 	fields := make([]Field, 0, len(header))
 	seen := make(map[string]struct{}, len(header))
 	for column, heading := range header {
-		name := exportedName(heading)
-		if name == "" || name == "Model" {
+		name, renamed := FieldName(heading)
+		if name == "" {
 			continue
+		}
+		if renamed {
+			csvMeta.Warnings[input.Path] = append(csvMeta.Warnings[input.Path],
+				fmt.Sprintf("column %q generates field %s, because %s is reserved by gorm.Model",
+					heading, name, exportedName(heading)))
 		}
 		if _, exists := seen[name]; exists {
 			return fmt.Errorf("CSV header %q produces duplicate Go field %q", heading, name)
@@ -101,6 +107,22 @@ func raggedRecordLine(err error) (int, bool) {
 		return parseErr.StartLine, true
 	}
 	return 0, false
+}
+
+// reservedNames are fields gorm.Model embeds in every generated model. A CSV column with one of
+// these names would shadow it, and an id column would overwrite the primary key.
+var reservedNames = map[string]bool{
+	"model": true, "id": true, "createdat": true, "updatedat": true, "deletedat": true,
+}
+
+// FieldName returns the Go field a CSV heading generates, and whether it was renamed to avoid a
+// gorm.Model field. inspectcsv and importcsv both use it, so generated models import their CSVs.
+func FieldName(heading string) (string, bool) {
+	name := exportedName(heading)
+	if reservedNames[strings.ToLower(name)] {
+		return name + "Field", true
+	}
+	return name, false
 }
 
 func exportedName(value string) string {

@@ -139,3 +139,51 @@ func TestPopulateMetaHasNoSkippedRowsForCleanFile(t *testing.T) {
 		t.Errorf("skipped rows = %v, want none", csvMeta.SkippedRows)
 	}
 }
+
+func TestFieldNameRenamesGormModelFields(t *testing.T) {
+	tests := map[string]struct {
+		want    string
+		renamed bool
+	}{
+		"model":      {"ModelField", true},
+		"id":         {"IdField", true},
+		"ID":         {"IDField", true},
+		"created_at": {"CreatedAtField", true},
+		"updatedAt":  {"UpdatedAtField", true},
+		"deleted at": {"DeletedAtField", true},
+		"model_no":   {"ModelNo", false},
+		"identity":   {"Identity", false},
+	}
+	for heading, test := range tests {
+		name, renamed := FieldName(heading)
+		if name != test.want || renamed != test.renamed {
+			t.Errorf("FieldName(%q) = %q, %v; want %q, %v", heading, name, renamed, test.want, test.renamed)
+		}
+	}
+}
+
+func TestPopulateMetaKeepsReservedColumnsUnderNewNames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "thing.csv")
+	if err := os.WriteFile(path, []byte("id,model,name\n7,X1,alpha\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var csvMeta CSVMeta
+	if err := csvMeta.PopulateMeta(path); err != nil {
+		t.Fatalf("PopulateMeta: %v", err)
+	}
+	want := []Field{
+		{Name: "IdField", Type: "int8"},
+		{Name: "ModelField", Type: "string"},
+		{Name: "Name", Type: "string"},
+	}
+	if got := csvMeta.Fields["Thing"]; !reflect.DeepEqual(got, want) {
+		t.Errorf("fields = %#v, want %#v", got, want)
+	}
+	wantWarnings := []string{
+		`column "id" generates field IdField, because Id is reserved by gorm.Model`,
+		`column "model" generates field ModelField, because Model is reserved by gorm.Model`,
+	}
+	if got := csvMeta.Warnings[path]; !reflect.DeepEqual(got, wantWarnings) {
+		t.Errorf("warnings = %q, want %q", got, wantWarnings)
+	}
+}

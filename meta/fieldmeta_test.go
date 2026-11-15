@@ -122,3 +122,46 @@ func TestGeneratedNamesRoundTripThroughFieldMeta(t *testing.T) {
 		t.Fatalf("generated fields %v cannot import their own headers: %v", fields, err)
 	}
 }
+
+type gormLike struct {
+	ID        uint
+	CreatedAt time.Time
+}
+
+type generatedThing struct {
+	gormLike
+	IdField    int8
+	ModelField string
+	Name       string
+}
+
+func TestNewFieldMetaMapsReservedHeadingsToRenamedFields(t *testing.T) {
+	fieldMeta, err := NewFieldMeta(&generatedThing{}, []string{"id", "model", "name"})
+	if err != nil {
+		t.Fatalf("NewFieldMeta: %v", err)
+	}
+	model, err := fieldMeta.RecordToModel(&generatedThing{}, []string{"7", "X1", "alpha"})
+	if err != nil {
+		t.Fatalf("RecordToModel: %v", err)
+	}
+	got := model.(*generatedThing)
+	if got.ID != 0 || got.IdField != 7 || got.ModelField != "X1" || got.Name != "alpha" {
+		t.Errorf("RecordToModel() = %+v; the id column must not set the primary key", got)
+	}
+}
+
+type olderGenerated struct {
+	gormLike
+	Name string
+}
+
+func TestNewFieldMetaProtectsEmbeddedFieldsForOlderModels(t *testing.T) {
+	// A model generated before renaming has no IdField: an id column must fail, not set ID.
+	if _, err := NewFieldMeta(&olderGenerated{}, []string{"id", "name"}); err == nil {
+		t.Error("expected an id heading to be rejected rather than written to the embedded ID")
+	}
+	// Its "model" column was always ignored, and still is.
+	if _, err := NewFieldMeta(&olderGenerated{}, []string{"model", "name"}); err != nil {
+		t.Errorf("model heading should be ignored for older models: %v", err)
+	}
+}

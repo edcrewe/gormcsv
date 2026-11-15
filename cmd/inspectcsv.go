@@ -31,6 +31,9 @@ var inspectCSVCommand = &cobra.Command{
 		if err := writeSkippedRows(cmd.ErrOrStderr(), csvMeta.SkippedRows); err != nil {
 			return err
 		}
+		if err := writeWarnings(cmd.ErrOrStderr(), csvMeta.Warnings); err != nil {
+			return err
+		}
 		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "generated %s\n", output); err != nil {
 			return fmt.Errorf("write generation result: %w", err)
 		}
@@ -57,6 +60,23 @@ func writeSkippedRows(w io.Writer, skipped map[string][]int) error {
 		if _, err := fmt.Fprintf(w, "warning: %s: skipped %d %s with the wrong number of fields (%s %s)\n",
 			path, len(lines), rows, lineWord, strings.Join(lines, ", ")); err != nil {
 			return fmt.Errorf("write skipped rows: %w", err)
+		}
+	}
+	return nil
+}
+
+// writeWarnings prints other inspection warnings, such as renamed columns, in path order.
+func writeWarnings(w io.Writer, warnings map[string][]string) error {
+	paths := make([]string, 0, len(warnings))
+	for path := range warnings {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		for _, warning := range warnings[path] {
+			if _, err := fmt.Fprintf(w, "warning: %s: %s\n", path, warning); err != nil {
+				return fmt.Errorf("write warnings: %w", err)
+			}
 		}
 	}
 	return nil

@@ -72,6 +72,10 @@ The filename determines the model name and each header determines a field name.
 For example, `order-item.csv` generates `OrderItem`, and `unit_price` generates
 `UnitPrice`.
 
+Columns named after a field that `gorm.Model` already provides (`model`, `id`,
+`created_at`, `updated_at`, `deleted_at`) get a `Field` suffix, such as
+`ModelField`, and the command warns about each one.
+
 Rows whose field count differs from the header are left out of type inference,
 matching `importcsv`, which rejects them. The command lists their line numbers
 on stderr and still exits successfully. Other parse errors, such as unbalanced

@@ -30,3 +30,18 @@ func TestWriteSkippedRowsWritesNothingWhenClean(t *testing.T) {
 		t.Errorf("unexpected output %q", out.String())
 	}
 }
+
+func TestWriteWarnings(t *testing.T) {
+	var out bytes.Buffer
+	warnings := map[string][]string{
+		"b.csv": {"second"},
+		"a.csv": {"first", "also first"},
+	}
+	if err := writeWarnings(&out, warnings); err != nil {
+		t.Fatal(err)
+	}
+	want := "warning: a.csv: first\nwarning: a.csv: also first\nwarning: b.csv: second\n"
+	if got := out.String(); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

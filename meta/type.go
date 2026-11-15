@@ -26,4 +26,6 @@ type CSVMeta struct {
 	// SkippedRows lists, per CSV path, the line numbers of records left out of type
 	// inference because their field count did not match the header.
 	SkippedRows map[string][]int
+	// Warnings lists, per CSV path, other problems worth reporting, such as renamed columns.
+	Warnings map[string][]string
 }
