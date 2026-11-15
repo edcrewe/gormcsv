@@ -2,10 +2,12 @@
 package importcsv
 
 import (
+	"time"
+
 	"gorm.io/gorm"
 )
 
-// MakeModels returns the models available to the command.
+// MakeModels returns the generated models.
 func MakeModels() ModelFactory {
 	return NewModelFactory(map[string]func() any{
 		"country":   func() any { return &Country{} },
@@ -15,30 +17,31 @@ func MakeModels() ModelFactory {
 
 type Country struct {
 	gorm.Model
-	Latitude  float64
-	Have      int64
-	That      int64
-	Longitude float64
-	In        int64
-	Our       int64
-	Name      string
-	Code      string
-	Other     int64
-	Data      int64
-	We        int64
-	Dont      int64
-	Alias     string
-	Some      string
+	Name       string
+	Code       string
+	Latitude   float64
+	Longitude  float64
+	Alias      string
+	Some       string
+	Other      int32
+	Data       int16
+	That       int16
+	We         int16
+	Dont       int16
+	Have       int8
+	In         int16
+	Our        int8
+	ModelField string
 }
 
 type TestTypes struct {
 	gorm.Model
-	Intcol     int16
-	Boolcol    bool
-	Datecol    string
 	Wordcol    string
 	Codecol    string
 	Textcol    string
 	Bigtextcol string
-	Numbercol  float32
+	Numbercol  float64
+	Intcol     int16
+	Boolcol    bool
+	Datecol    time.Time
 }

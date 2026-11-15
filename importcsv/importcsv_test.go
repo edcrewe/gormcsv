@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -29,7 +30,8 @@ func TestImportTestTypesPreservesValues(t *testing.T) {
 	if record.Wordcol != "tent" || record.Textcol != "Save UK" || record.Bigtextcol != "Tent Family 17.5m2" {
 		t.Errorf("string fields were not preserved: %+v", record)
 	}
-	if record.Numbercol != 32.45 || record.Intcol != 45 || !record.Boolcol || record.Datecol != "2014-02-21" {
+	wantDate := time.Date(2014, time.February, 21, 0, 0, 0, 0, time.UTC)
+	if record.Numbercol != 32.45 || record.Intcol != 45 || !record.Boolcol || !record.Datecol.Equal(wantDate) {
 		t.Errorf("typed fields were not preserved: %+v", record)
 	}
 }
@@ -254,4 +256,38 @@ func writeCSV(t *testing.T, name string, records [][]string) string {
 		t.Fatalf("close CSV: %v", err)
 	}
 	return path
+}
+
+func TestImportKeepsReservedColumnsOutOfGormModel(t *testing.T) {
+	type Thing struct {
+		gorm.Model
+		IdField    int8
+		ModelField string
+		Name       string
+	}
+	factory := NewModelFactory(map[string]func() any{"thing": func() any { return &Thing{} }})
+	importer, db := testImporter(t, factory, 10)
+	path := writeCSV(t, "Thing.csv", [][]string{
+		{"id", "model", "name"},
+		{"7", "X1", "alpha"},
+		{"7", "X2", "beta"},
+	})
+
+	result, err := importer.Import(context.Background(), path)
+	if err != nil {
+		t.Fatalf("Import returned an error: %v", err)
+	}
+	if result.Inserted != 2 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	var things []Thing
+	if err := db.Order("id").Find(&things).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(things) != 2 || things[0].ID != 1 || things[1].ID != 2 {
+		t.Fatalf("primary keys should be assigned by the database: %+v", things)
+	}
+	if things[0].IdField != 7 || things[0].ModelField != "X1" || things[1].ModelField != "X2" {
+		t.Errorf("reserved columns were not imported into their renamed fields: %+v", things)
+	}
 }
