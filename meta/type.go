@@ -20,6 +20,11 @@ type Field struct {
 
 // CSVMeta - main metadata struct used by inspectcsv and importcsv
 type CSVMeta struct {
+	// Keys is input, set before PopulateMeta: per model key (the lower-cased filename without
+	// .csv), the CSV headings that together must be unique. Their fields get a unique index, so
+	// importcsv skips rows whose key is already in the table.
+	Keys map[string][]string
+
 	Models   map[string]string
 	Fields   map[string][]Field
 	UsesTime bool

@@ -12,7 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var output string
+var (
+	output string
+	keys   []string
+)
 
 var inspectCSVCommand = &cobra.Command{
 	Use:   "inspectcsv",
@@ -21,7 +24,11 @@ var inspectCSVCommand = &cobra.Command{
 		if files == "" {
 			return fmt.Errorf("--files is required")
 		}
-		var csvMeta meta.CSVMeta
+		parsedKeys, err := parseKeys(keys)
+		if err != nil {
+			return err
+		}
+		csvMeta := meta.CSVMeta{Keys: parsedKeys}
 		if err := csvMeta.PopulateMeta(files); err != nil {
 			return err
 		}
@@ -39,6 +46,28 @@ var inspectCSVCommand = &cobra.Command{
 		}
 		return nil
 	},
+}
+
+// parseKeys reads --key values of the form model=heading or model=heading+heading.
+func parseKeys(values []string) (map[string][]string, error) {
+	parsed := make(map[string][]string, len(values))
+	for _, value := range values {
+		model, columns, ok := strings.Cut(value, "=")
+		model = strings.ToLower(strings.TrimSpace(model))
+		if !ok || model == "" || strings.TrimSpace(columns) == "" {
+			return nil, fmt.Errorf("--key %q must look like model=column or model=column+column", value)
+		}
+		if _, exists := parsed[model]; exists {
+			return nil, fmt.Errorf("--key given twice for %q", model)
+		}
+		for _, column := range strings.Split(columns, "+") {
+			if column = strings.TrimSpace(column); column == "" {
+				return nil, fmt.Errorf("--key %q has an empty column", value)
+			}
+			parsed[model] = append(parsed[model], column)
+		}
+	}
+	return parsed, nil
 }
 
 // writeSkippedRows warns about rows left out of type inference, in path order.
@@ -84,5 +113,7 @@ func writeWarnings(w io.Writer, warnings map[string][]string) error {
 
 func init() {
 	inspectCSVCommand.Flags().StringVarP(&output, "output", "o", "importcsv/models.go", "generated Go file")
+	inspectCSVCommand.Flags().StringArrayVar(&keys, "key", nil,
+		"unique key for a model, e.g. country=code or order-item=order+line; repeatable")
 	rootCmd.AddCommand(inspectCSVCommand)
 }

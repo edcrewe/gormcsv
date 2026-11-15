@@ -4,6 +4,9 @@
 
 * `inspectcsv` skips rows with the wrong number of fields instead of failing the file, and
   reports their line numbers on stderr, matching how `importcsv` rejects them.
+* Add `inspectcsv --key model=column[+column]` to give a model a unique key. The key fields get a
+  unique index, so `importcsv` skips rows whose key is already in the table and counts them as
+  duplicates, instead of adding every row again on each import.
 * Regenerate the committed `importcsv/models.go` from `static/fixtures`. It predated the current
   type inference (`Datecol string`, `Numbercol float32`), and a test now fails if it goes stale.
 * Columns named after `gorm.Model` fields (`model`, `id`, `created_at`, `updated_at`,

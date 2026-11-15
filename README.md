@@ -76,6 +76,20 @@ Columns named after a field that `gorm.Model` already provides (`model`, `id`,
 `created_at`, `updated_at`, `deleted_at`) get a `Field` suffix, such as
 `ModelField`, and the command warns about each one.
 
+Generated models have no unique key, so importing the same CSV twice stores every
+row twice. To skip rows that are already loaded, give the model a key from one or
+more columns:
+
+```sh
+go run . inspectcsv --files static/fixtures --output importcsv/models.go \
+  --key country=code --key order-line=order_id+line
+```
+
+The key fields get a unique index (a composite one for several columns), and
+`importcsv` counts rows whose key already exists as skipped duplicates. Generated
+fields are never pointers, so an empty key value counts as a value, and all rows
+with an empty key are duplicates of each other.
+
 Rows whose field count differs from the header are left out of type inference,
 matching `importcsv`, which rejects them. The command lists their line numbers
 on stderr and still exits successfully. Other parse errors, such as unbalanced

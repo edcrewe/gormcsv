@@ -29,6 +29,11 @@ func (csvMeta *CSVMeta) PopulateMeta(path string) error {
 			return err
 		}
 	}
+	for model := range csvMeta.Keys {
+		if _, ok := csvMeta.Models[model]; !ok {
+			return fmt.Errorf("key for %q matches no CSV file", model)
+		}
+	}
 	return nil
 }
 
@@ -73,6 +78,7 @@ func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
 	}
 	csvMeta.Models[strings.ToLower(input.Model)] = modelName
 	fields := make([]Field, 0, len(header))
+	fieldForColumn := make(map[int]int, len(header))
 	seen := make(map[string]struct{}, len(header))
 	for column, heading := range header {
 		name, renamed := FieldName(heading)
@@ -92,9 +98,44 @@ func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
 		if field.Type == "time.Time" {
 			csvMeta.UsesTime = true
 		}
+		fieldForColumn[column] = len(fields)
 		fields = append(fields, field)
 	}
+	if err := applyKey(fields, fieldForColumn, header, csvMeta.Keys[strings.ToLower(input.Model)], modelName); err != nil {
+		return fmt.Errorf("%s: %w", input.Path, err)
+	}
 	csvMeta.Fields[modelName] = fields
+	return nil
+}
+
+// applyKey tags the fields for the key headings with a unique index; a composite key shares one
+// named index. Generated fields are never pointers, so an empty value is a real value and empty
+// keys count as duplicates of each other.
+func applyKey(fields []Field, fieldForColumn map[int]int, header, keyHeadings []string, modelName string) error {
+	if len(keyHeadings) == 0 {
+		return nil
+	}
+	tag := "`gorm:\"uniqueIndex\"`"
+	if len(keyHeadings) > 1 {
+		tag = fmt.Sprintf("`gorm:\"uniqueIndex:idx_%s_key\"`", strings.ToLower(modelName))
+	}
+	for _, keyHeading := range keyHeadings {
+		found := false
+		for column, heading := range header {
+			if !strings.EqualFold(strings.TrimSpace(heading), strings.TrimSpace(keyHeading)) {
+				continue
+			}
+			index, ok := fieldForColumn[column]
+			if !ok {
+				return fmt.Errorf("key column %q does not generate a field", keyHeading)
+			}
+			fields[index].Tag = tag
+			found = true
+		}
+		if !found {
+			return fmt.Errorf("key column %q is not in the CSV header", keyHeading)
+		}
+	}
 	return nil
 }
 

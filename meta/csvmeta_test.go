@@ -187,3 +187,58 @@ func TestPopulateMetaKeepsReservedColumnsUnderNewNames(t *testing.T) {
 		t.Errorf("warnings = %q, want %q", got, wantWarnings)
 	}
 }
+
+func TestPopulateMetaTagsKeyFields(t *testing.T) {
+	directory := t.TempDir()
+	files := map[string]string{
+		"country.csv":    "name,Code\nAfghanistan,AF\n",
+		"order-line.csv": "order_id,line,item\nA,1,pen\n",
+		"plain.csv":      "name\nx\n",
+	}
+	for name, contents := range files {
+		if err := os.WriteFile(filepath.Join(directory, name), []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	csvMeta := CSVMeta{Keys: map[string][]string{
+		"country":    {"code"},
+		"order-line": {"ORDER_ID", "line"},
+	}}
+	if err := csvMeta.PopulateMeta(directory); err != nil {
+		t.Fatalf("PopulateMeta: %v", err)
+	}
+	tags := func(model string) []string {
+		var got []string
+		for _, f := range csvMeta.Fields[model] {
+			got = append(got, f.Name+" "+f.Tag)
+		}
+		return got
+	}
+	if got, want := tags("Country"), []string{"Name ", "Code `gorm:\"uniqueIndex\"`"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Country = %q, want %q", got, want)
+	}
+	composite := "`gorm:\"uniqueIndex:idx_orderline_key\"`"
+	if got, want := tags("OrderLine"), []string{"OrderId " + composite, "Line " + composite, "Item "}; !reflect.DeepEqual(got, want) {
+		t.Errorf("OrderLine = %q, want %q", got, want)
+	}
+	if got, want := tags("Plain"), []string{"Name "}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Plain = %q, want %q", got, want)
+	}
+}
+
+func TestPopulateMetaRejectsUnknownKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "country.csv")
+	if err := os.WriteFile(path, []byte("name,code\nA,AF\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tests := map[string]map[string][]string{
+		`key for "countries" matches no CSV file`:   {"countries": {"code"}},
+		`key column "iso" is not in the CSV header`: {"country": {"iso"}},
+	}
+	for want, keys := range tests {
+		csvMeta := CSVMeta{Keys: keys}
+		if err := csvMeta.PopulateMeta(path); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("PopulateMeta with %v: error %v, want %q", keys, err, want)
+		}
+	}
+}

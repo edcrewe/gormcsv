@@ -291,3 +291,67 @@ func TestImportKeepsReservedColumnsOutOfGormModel(t *testing.T) {
 		t.Errorf("reserved columns were not imported into their renamed fields: %+v", things)
 	}
 }
+
+// Models generated with --key carry a unique index, so re-importing skips rows already loaded.
+func TestImportSkipsRowsWhoseKeyIsAlreadyLoaded(t *testing.T) {
+	type KeyedCountry struct {
+		gorm.Model
+		Code string `gorm:"uniqueIndex"`
+		Name string
+	}
+	factory := NewModelFactory(map[string]func() any{"keyedcountry": func() any { return &KeyedCountry{} }})
+	importer, db := testImporter(t, factory, 2)
+	path := writeCSV(t, "KeyedCountry.csv", [][]string{
+		{"code", "name"},
+		{"AF", "Afghanistan"},
+		{"AL", "Albania"},
+		{"AF", "Afghanistan again"},
+	})
+
+	first, err := importer.Import(context.Background(), path)
+	if err != nil {
+		t.Fatalf("first import: %v", err)
+	}
+	second, err := importer.Import(context.Background(), path)
+	if err != nil {
+		t.Fatalf("second import: %v", err)
+	}
+
+	if first.Inserted != 2 || first.Duplicates != 1 {
+		t.Errorf("first import = %+v, want 2 inserted and the repeated AF skipped", first)
+	}
+	if second.Inserted != 0 || second.Duplicates != 3 {
+		t.Errorf("second import = %+v, want every row skipped", second)
+	}
+	var count int64
+	db.Model(&KeyedCountry{}).Count(&count)
+	if count != 2 {
+		t.Errorf("stored %d rows, want 2", count)
+	}
+}
+
+func TestImportCompositeKeyAllowsRepeatsOfOnePart(t *testing.T) {
+	type OrderLine struct {
+		gorm.Model
+		OrderId string `gorm:"uniqueIndex:idx_orderline_key"`
+		Line    int8   `gorm:"uniqueIndex:idx_orderline_key"`
+		Item    string
+	}
+	factory := NewModelFactory(map[string]func() any{"orderline": func() any { return &OrderLine{} }})
+	importer, _ := testImporter(t, factory, 10)
+	path := writeCSV(t, "OrderLine.csv", [][]string{
+		{"order_id", "line", "item"},
+		{"A", "1", "pen"},
+		{"A", "2", "ink"},
+		{"B", "1", "pad"},
+		{"A", "1", "pen again"},
+	})
+
+	result, err := importer.Import(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inserted != 3 || result.Duplicates != 1 {
+		t.Errorf("result = %+v, want 3 inserted and only A/1 skipped", result)
+	}
+}

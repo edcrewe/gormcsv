@@ -92,3 +92,20 @@ func TestCommittedModelsMatchGeneratorOutput(t *testing.T) {
 		t.Errorf("importcsv/models.go is stale; regenerate it from static/fixtures.\nGenerated:\n%s", generated.String())
 	}
 }
+
+func TestGenerateWritesKeyTags(t *testing.T) {
+	csvMeta := meta.CSVMeta{
+		Models: map[string]string{"country": "Country"},
+		Fields: map[string][]meta.Field{"Country": {
+			{Name: "Code", Type: "string", Tag: "`gorm:\"uniqueIndex\"`"},
+			{Name: "Name", Type: "string"},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := Generate(&buf, csvMeta); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "Code string `gorm:\"uniqueIndex\"`") {
+		t.Errorf("tag missing from generated source:\n%s", buf.String())
+	}
+}
