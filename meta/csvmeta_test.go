@@ -53,9 +53,9 @@ func TestPopulateMetaPreservesHeaderOrder(t *testing.T) {
 		t.Errorf("model = %q, want EventLog", got)
 	}
 	want := []Field{
-		{Name: "EventName", Type: "string"},
-		{Name: "EventDate", Type: "time.Time"},
-		{Name: "TotalCount", Type: "int8"},
+		{Name: "EventName", Type: "string", Column: "event_name"},
+		{Name: "EventDate", Type: "time.Time", Column: "event_date"},
+		{Name: "TotalCount", Type: "int8", Column: "total-count"},
 	}
 	if got := csvMeta.Fields["EventLog"]; !reflect.DeepEqual(got, want) {
 		t.Errorf("fields = %#v, want %#v", got, want)
@@ -95,7 +95,7 @@ func TestPopulateMetaSkipsRowsWithWrongFieldCount(t *testing.T) {
 		t.Errorf("skipped rows = %v, want %v", got, want)
 	}
 	// Only the well-formed rows drive inference: 1 and 300 need int16, and "2,extra" is ignored.
-	want := []Field{{Name: "Name", Type: "string"}, {Name: "Count", Type: "int16"}}
+	want := []Field{{Name: "Name", Type: "string", Column: "name"}, {Name: "Count", Type: "int16", Column: "count"}}
 	if got := csvMeta.Fields["Ragged"]; !reflect.DeepEqual(got, want) {
 		t.Errorf("fields = %#v, want %#v", got, want)
 	}
@@ -113,7 +113,7 @@ func TestPopulateMetaInspectsCountryFixtureDespiteShortRow(t *testing.T) {
 	if got := csvMeta.Models["country"]; got != "Country" {
 		t.Errorf("model = %q, want Country", got)
 	}
-	if fields := csvMeta.Fields["Country"]; len(fields) == 0 || fields[0] != (Field{Name: "Name", Type: "string"}) {
+	if fields := csvMeta.Fields["Country"]; len(fields) == 0 || fields[0] != (Field{Name: "Name", Type: "string", Column: "name"}) {
 		t.Errorf("unexpected Country fields: %#v", fields)
 	}
 }
@@ -172,9 +172,9 @@ func TestPopulateMetaKeepsReservedColumnsUnderNewNames(t *testing.T) {
 		t.Fatalf("PopulateMeta: %v", err)
 	}
 	want := []Field{
-		{Name: "IdField", Type: "int8"},
-		{Name: "ModelField", Type: "string"},
-		{Name: "Name", Type: "string"},
+		{Name: "IdField", Type: "int8", Column: "id"},
+		{Name: "ModelField", Type: "string", Column: "model"},
+		{Name: "Name", Type: "string", Column: "name"},
 	}
 	if got := csvMeta.Fields["Thing"]; !reflect.DeepEqual(got, want) {
 		t.Errorf("fields = %#v, want %#v", got, want)
@@ -253,8 +253,8 @@ func TestPopulateMetaAddsRowHashForDedupe(t *testing.T) {
 		t.Fatalf("PopulateMeta: %v", err)
 	}
 	want := []Field{
-		{Name: "Name", Type: "string"},
-		{Name: "Code", Type: "string"},
+		{Name: "Name", Type: "string", Column: "name"},
+		{Name: "Code", Type: "string", Column: "code"},
 		{Name: "RowHash", Type: "string", Tag: "`gorm:\"uniqueIndex;size:64\"`"},
 	}
 	if got := csvMeta.Fields["Country"]; !reflect.DeepEqual(got, want) {

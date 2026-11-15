@@ -90,8 +90,8 @@ func TestInspectJSON(t *testing.T) {
 	want := InspectReport{
 		Output: modelsPath,
 		Models: []InspectModel{{Key: "thing", Name: "Thing", Fields: []meta.Field{
-			{Name: "ModelField", Type: "string"},
-			{Name: "Count", Type: "int8"},
+			{Name: "ModelField", Type: "string", Column: "model"},
+			{Name: "Count", Type: "int8", Column: "count"},
 		}}},
 		SkippedRows: map[string][]int{csvPath: {3}},
 		Warnings: map[string][]string{csvPath: {

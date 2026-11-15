@@ -18,6 +18,8 @@ type Field struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 	Tag  string `json:"tag,omitempty"`
+	// Column is the CSV heading the field came from; empty for fields gormcsv adds, such as RowHash.
+	Column string `json:"column,omitempty"`
 }
 
 // CSVMeta - main metadata struct used by inspectcsv and importcsv

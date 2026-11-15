@@ -100,6 +100,7 @@ func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
 		}
 		seen[name] = struct{}{}
 		field := samples[column].field(name)
+		field.Column = heading
 		if field.Type == "time.Time" {
 			csvMeta.UsesTime = true
 		}
