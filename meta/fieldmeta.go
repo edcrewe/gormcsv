@@ -32,8 +32,11 @@ func NewFieldMeta(model any, header []string) (*FieldMeta, error) {
 		if strings.EqualFold(heading, "model") {
 			continue
 		}
+		// Accept the Go name inspectcsv generates for this heading (unit_price -> UnitPrice,
+		// 1st col -> Field1stCol) as well as a heading that already is the field name.
+		generated := exportedName(heading)
 		field, ok := modelType.FieldByNameFunc(func(name string) bool {
-			return strings.EqualFold(name, heading)
+			return name == generated || strings.EqualFold(name, heading)
 		})
 		if !ok || field.PkgPath != "" {
 			return nil, fmt.Errorf("CSV heading %q has no exported field in %s", heading, modelType)

@@ -4,6 +4,9 @@
 
 * `inspectcsv` skips rows with the wrong number of fields instead of failing the file, and
   reports their line numbers on stderr, matching how `importcsv` rejects them.
+* `importcsv` now matches CSV headings to the Go names `inspectcsv` generates, so headings like
+  `unit_price` or `1st col` import into `UnitPrice` and `Field1stCol`. Before, a generated model
+  could not import its own CSV unless every heading was a single word.
 * Print each command error once on stderr, prefixed with `Error:`. Cobra and `main` both printed
   it before.
 * Add `gormcsv version` (and `--version`). It reports the build tag, or the latest tag plus

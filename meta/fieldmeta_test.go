@@ -1,6 +1,9 @@
 package meta
 
 import (
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -74,5 +77,48 @@ func TestRecordToModelRejectsConversionAndShortRows(t *testing.T) {
 	}
 	if _, err := fieldMeta.RecordToModel(&mappedModel{}, []string{"name"}); err == nil {
 		t.Fatal("expected short-row error")
+	}
+}
+
+func TestNewFieldMetaMatchesGeneratedFieldNames(t *testing.T) {
+	type OrderItem struct {
+		UnitPrice   float64
+		Field1stCol int8
+		TotalCount  int16
+	}
+	headers := []string{"unit_price", "1st col", "total-count"}
+	fieldMeta, err := NewFieldMeta(&OrderItem{}, headers)
+	if err != nil {
+		t.Fatalf("NewFieldMeta: %v", err)
+	}
+	model, err := fieldMeta.RecordToModel(&OrderItem{}, []string{"2.5", "7", "-3"})
+	if err != nil {
+		t.Fatalf("RecordToModel: %v", err)
+	}
+	got := *model.(*OrderItem)
+	if want := (OrderItem{UnitPrice: 2.5, Field1stCol: 7, TotalCount: -3}); got != want {
+		t.Errorf("RecordToModel() = %+v, want %+v", got, want)
+	}
+}
+
+// Every name the generator produces must be importable, or a generated model cannot load its own CSV.
+func TestGeneratedNamesRoundTripThroughFieldMeta(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "order-item.csv")
+	contents := "item name,unit_price,2nd-qty\nwidget,1.5,3\n"
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var csvMeta CSVMeta
+	if err := csvMeta.PopulateMeta(path); err != nil {
+		t.Fatalf("PopulateMeta: %v", err)
+	}
+	fields := csvMeta.Fields["OrderItem"]
+	structFields := make([]reflect.StructField, len(fields))
+	for i, field := range fields {
+		structFields[i] = reflect.StructField{Name: field.Name, Type: reflect.TypeOf("")}
+	}
+	model := reflect.New(reflect.StructOf(structFields)).Interface()
+	if _, err := NewFieldMeta(model, []string{"item name", "unit_price", "2nd-qty"}); err != nil {
+		t.Fatalf("generated fields %v cannot import their own headers: %v", fields, err)
 	}
 }
