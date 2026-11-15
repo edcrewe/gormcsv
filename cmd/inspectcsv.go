@@ -15,6 +15,7 @@ import (
 var (
 	output string
 	keys   []string
+	dedupe []string
 )
 
 var inspectCSVCommand = &cobra.Command{
@@ -28,7 +29,10 @@ var inspectCSVCommand = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		csvMeta := meta.CSVMeta{Keys: parsedKeys}
+		csvMeta := meta.CSVMeta{Keys: parsedKeys, Dedupe: make(map[string]bool, len(dedupe))}
+		for _, model := range dedupe {
+			csvMeta.Dedupe[strings.ToLower(strings.TrimSpace(model))] = true
+		}
 		if err := csvMeta.PopulateMeta(files); err != nil {
 			return err
 		}
@@ -115,5 +119,7 @@ func init() {
 	inspectCSVCommand.Flags().StringVarP(&output, "output", "o", "importcsv/models.go", "generated Go file")
 	inspectCSVCommand.Flags().StringArrayVar(&keys, "key", nil,
 		"unique key for a model, e.g. country=code or order-item=order+line; repeatable")
+	inspectCSVCommand.Flags().StringArrayVar(&dedupe, "dedupe", nil,
+		"skip rows identical to one already imported for this model, e.g. country; repeatable")
 	rootCmd.AddCommand(inspectCSVCommand)
 }

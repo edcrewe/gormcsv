@@ -355,3 +355,43 @@ func TestImportCompositeKeyAllowsRepeatsOfOnePart(t *testing.T) {
 		t.Errorf("result = %+v, want 3 inserted and only A/1 skipped", result)
 	}
 }
+
+// Models generated with --dedupe have a RowHash with a unique index: identical rows load once.
+func TestImportDedupeSkipsIdenticalRows(t *testing.T) {
+	type Reading struct {
+		gorm.Model
+		Sensor  string
+		Value   float64
+		RowHash string `gorm:"uniqueIndex;size:64"`
+	}
+	factory := NewModelFactory(map[string]func() any{"reading": func() any { return &Reading{} }})
+	importer, db := testImporter(t, factory, 2)
+	path := writeCSV(t, "Reading.csv", [][]string{
+		{"sensor", "value"},
+		{"a", "1.5"},
+		{"a", "2.5"},
+		{"a", "1.5"},
+		{"b", "1.5"},
+	})
+
+	first, err := importer.Import(context.Background(), path)
+	if err != nil {
+		t.Fatalf("first import: %v", err)
+	}
+	second, err := importer.Import(context.Background(), path)
+	if err != nil {
+		t.Fatalf("second import: %v", err)
+	}
+
+	if first.Inserted != 3 || first.Duplicates != 1 {
+		t.Errorf("first import = %+v, want the repeated a,1.5 skipped", first)
+	}
+	if second.Inserted != 0 || second.Duplicates != 4 {
+		t.Errorf("second import = %+v, want every row skipped", second)
+	}
+	var count int64
+	db.Model(&Reading{}).Count(&count)
+	if count != 3 {
+		t.Errorf("stored %d rows, want 3", count)
+	}
+}

@@ -34,6 +34,11 @@ func (csvMeta *CSVMeta) PopulateMeta(path string) error {
 			return fmt.Errorf("key for %q matches no CSV file", model)
 		}
 	}
+	for model := range csvMeta.Dedupe {
+		if _, ok := csvMeta.Models[model]; !ok {
+			return fmt.Errorf("dedupe for %q matches no CSV file", model)
+		}
+	}
 	return nil
 }
 
@@ -104,9 +109,21 @@ func (csvMeta *CSVMeta) populateFile(input CSVFile) error {
 	if err := applyKey(fields, fieldForColumn, header, csvMeta.Keys[strings.ToLower(input.Model)], modelName); err != nil {
 		return fmt.Errorf("%s: %w", input.Path, err)
 	}
+	if csvMeta.Dedupe[strings.ToLower(input.Model)] {
+		if len(csvMeta.Keys[strings.ToLower(input.Model)]) > 0 {
+			return fmt.Errorf("%s: use either a key or dedupe for a model, not both", input.Path)
+		}
+		if _, exists := seen[RowHashField]; exists {
+			return fmt.Errorf("%s: a CSV column already generates %s, so dedupe cannot add it", input.Path, RowHashField)
+		}
+		fields = append(fields, Field{Name: RowHashField, Type: "string", Tag: "`gorm:\"uniqueIndex;size:64\"`"})
+	}
 	csvMeta.Fields[modelName] = fields
 	return nil
 }
+
+// RowHashField holds a SHA-256 of a row's values in models generated with dedupe.
+const RowHashField = "RowHash"
 
 // applyKey tags the fields for the key headings with a unique index; a composite key shares one
 // named index. Generated fields are never pointers, so an empty value is a real value and empty

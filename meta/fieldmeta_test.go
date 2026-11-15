@@ -165,3 +165,50 @@ func TestNewFieldMetaProtectsEmbeddedFieldsForOlderModels(t *testing.T) {
 		t.Errorf("model heading should be ignored for older models: %v", err)
 	}
 }
+
+type hashedModel struct {
+	Name    string
+	Code    string
+	RowHash string
+}
+
+func hashOf(t *testing.T, fieldMeta *FieldMeta, record []string) string {
+	t.Helper()
+	model, err := fieldMeta.RecordToModel(&hashedModel{}, record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return model.(*hashedModel).RowHash
+}
+
+func TestRecordToModelFillsRowHash(t *testing.T) {
+	fieldMeta, err := NewFieldMeta(&hashedModel{}, []string{"name", "code", "model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := hashOf(t, fieldMeta, []string{"Afghanistan", "AF", "ignored"})
+
+	if len(first) != 64 {
+		t.Fatalf("RowHash = %q, want 64 hex characters", first)
+	}
+	if again := hashOf(t, fieldMeta, []string{"Afghanistan", "AF", "different"}); again != first {
+		t.Error("an ignored column should not change the hash")
+	}
+	if other := hashOf(t, fieldMeta, []string{"Afghanistan", "AL", "ignored"}); other == first {
+		t.Error("different values should give a different hash")
+	}
+	// Length prefixes keep ("ab","c") and ("a","bc") apart.
+	if hashOf(t, fieldMeta, []string{"ab", "c", ""}) == hashOf(t, fieldMeta, []string{"a", "bc", ""}) {
+		t.Error("values must not run together in the hash")
+	}
+}
+
+func TestRowHashIsNotOverwrittenWhenTheCSVFillsIt(t *testing.T) {
+	fieldMeta, err := NewFieldMeta(&hashedModel{}, []string{"name", "rowhash"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := hashOf(t, fieldMeta, []string{"x", "from-csv"}); got != "from-csv" {
+		t.Errorf("RowHash = %q, want the CSV value", got)
+	}
+}

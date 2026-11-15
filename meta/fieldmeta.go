@@ -1,8 +1,11 @@
 package meta
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -52,7 +55,17 @@ func NewFieldMeta(model any, header []string) (*FieldMeta, error) {
 		}
 		fields = append(fields, mappedField{column: column, name: field.Name})
 	}
-	return &FieldMeta{fields: fields}, nil
+	fieldMeta := &FieldMeta{fields: fields}
+	if hash, ok := modelType.FieldByName(RowHashField); ok && hash.Type.Kind() == reflect.String {
+		mapped := false
+		for _, field := range fields {
+			mapped = mapped || field.name == RowHashField
+		}
+		if !mapped {
+			fieldMeta.hashField = RowHashField
+		}
+	}
+	return fieldMeta, nil
 }
 
 // RecordToModel populates a new model using the mapping compiled from its header.
@@ -75,7 +88,21 @@ func (meta *FieldMeta) RecordToModel(model any, record []string) (any, error) {
 		}
 		target.Set(value)
 	}
+	if meta.hashField != "" {
+		structValue.FieldByName(meta.hashField).SetString(meta.rowHash(record))
+	}
 	return model, nil
+}
+
+// rowHash is a SHA-256 of the mapped values, each length-prefixed so that ("ab","c") and
+// ("a","bc") differ. It hashes the CSV text, so "1" and "1.0" are different rows.
+func (meta *FieldMeta) rowHash(record []string) string {
+	hash := sha256.New()
+	for _, field := range meta.fields {
+		value := record[field.column]
+		_, _ = hash.Write([]byte(strconv.Itoa(len(value)) + ":" + value))
+	}
+	return hex.EncodeToString(hash.Sum(nil))
 }
 
 func structType(model any) (reflect.Type, error) {

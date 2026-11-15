@@ -4,6 +4,9 @@
 
 * `inspectcsv` skips rows with the wrong number of fields instead of failing the file, and
   reports their line numbers on stderr, matching how `importcsv` rejects them.
+* Add `inspectcsv --dedupe model` for data with no natural key. The model gets a `RowHash` field
+  with a unique index, `importcsv` fills it with a SHA-256 of the row's values, and identical rows
+  load once. It hashes the CSV text, so `1` and `1.0` are different rows.
 * Add `inspectcsv --key model=column[+column]` to give a model a unique key. The key fields get a
   unique index, so `importcsv` skips rows whose key is already in the table and counts them as
   duplicates, instead of adding every row again on each import.

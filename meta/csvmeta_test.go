@@ -242,3 +242,49 @@ func TestPopulateMetaRejectsUnknownKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestPopulateMetaAddsRowHashForDedupe(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "country.csv")
+	if err := os.WriteFile(path, []byte("name,code\nA,AF\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	csvMeta := CSVMeta{Dedupe: map[string]bool{"country": true}}
+	if err := csvMeta.PopulateMeta(path); err != nil {
+		t.Fatalf("PopulateMeta: %v", err)
+	}
+	want := []Field{
+		{Name: "Name", Type: "string"},
+		{Name: "Code", Type: "string"},
+		{Name: "RowHash", Type: "string", Tag: "`gorm:\"uniqueIndex;size:64\"`"},
+	}
+	if got := csvMeta.Fields["Country"]; !reflect.DeepEqual(got, want) {
+		t.Errorf("fields = %#v, want %#v", got, want)
+	}
+}
+
+func TestPopulateMetaRejectsConflictingDedupe(t *testing.T) {
+	directory := t.TempDir()
+	write := func(name, contents string) string {
+		path := filepath.Join(directory, name)
+		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	plain := write("country.csv", "name,code\nA,AF\n")
+	hashed := write("hashed.csv", "name,row_hash\nA,x\n")
+	tests := []struct {
+		path string
+		meta CSVMeta
+		want string
+	}{
+		{plain, CSVMeta{Dedupe: map[string]bool{"nothing": true}}, `dedupe for "nothing" matches no CSV file`},
+		{plain, CSVMeta{Dedupe: map[string]bool{"country": true}, Keys: map[string][]string{"country": {"code"}}}, "either a key or dedupe"},
+		{hashed, CSVMeta{Dedupe: map[string]bool{"hashed": true}}, "already generates RowHash"},
+	}
+	for _, test := range tests {
+		if err := test.meta.PopulateMeta(test.path); err == nil || !strings.Contains(err.Error(), test.want) {
+			t.Errorf("PopulateMeta(%s): error %v, want %q", filepath.Base(test.path), err, test.want)
+		}
+	}
+}

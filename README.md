@@ -81,14 +81,27 @@ row twice. To skip rows that are already loaded, give the model a key from one o
 more columns:
 
 ```sh
-go run . inspectcsv --files static/fixtures --output importcsv/models.go \
-  --key country=code --key order-line=order_id+line
+go run . inspectcsv --files static/fixtures --output importcsv/models.go --key country=code
 ```
 
-The key fields get a unique index (a composite one for several columns), and
+`--key` names the model by its CSV filename and can be repeated. Join columns
+with `+` for a composite key, such as `--key order-line=order_id+line`. The key
+fields get a unique index (a composite one for several columns), and
 `importcsv` counts rows whose key already exists as skipped duplicates. Generated
 fields are never pointers, so an empty key value counts as a value, and all rows
 with an empty key are duplicates of each other.
+
+If the data has no natural key, `--dedupe model` skips rows identical to one
+already loaded instead. The model gets a `RowHash` field with a unique index, and
+`importcsv` fills it with a SHA-256 of the row's values. It compares the CSV text,
+so `1` and `1.0` are different rows. Use either `--key` or `--dedupe` for a model,
+not both.
+
+Both cost an index update per row. In a single run on SQLite, loading 200,000 rows
+took about 1.0s with no key, 1.1s with `--key` on a sequential code column, and
+2.2s with `--dedupe`, whose random hashes spread across the index. Re-importing
+the same file was faster than the first load in both cases, because every row was
+skipped.
 
 Rows whose field count differs from the header are left out of type inference,
 matching `importcsv`, which rejects them. The command lists their line numbers

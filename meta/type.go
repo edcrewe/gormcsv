@@ -5,6 +5,8 @@ package meta
 // fieldtype = type of field used for converting from CSV string
 type FieldMeta struct {
 	fields []mappedField
+	// hashField is set when the model has a RowHash field the CSV does not fill.
+	hashField string
 }
 
 type mappedField struct {
@@ -24,6 +26,9 @@ type CSVMeta struct {
 	// .csv), the CSV headings that together must be unique. Their fields get a unique index, so
 	// importcsv skips rows whose key is already in the table.
 	Keys map[string][]string
+	// Dedupe is input, set before PopulateMeta: model keys whose identical rows should be
+	// skipped. Those models get a RowHash field with a unique index, filled by importcsv.
+	Dedupe map[string]bool
 
 	Models   map[string]string
 	Fields   map[string][]Field
