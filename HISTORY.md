@@ -4,6 +4,8 @@
 
 * `inspectcsv` skips rows with the wrong number of fields instead of failing the file, and
   reports their line numbers on stderr, matching how `importcsv` rejects them.
+* Print each command error once on stderr, prefixed with `Error:`. Cobra and `main` both printed
+  it before.
 * Add `gormcsv version` (and `--version`). It reports the build tag, or the latest tag plus
   commits since and short hash, stamped by `make build`, `make docker`, and release builds.
 

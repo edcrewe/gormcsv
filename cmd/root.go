@@ -9,6 +9,8 @@ var rootCmd = &cobra.Command{
 	Use:          "gormcsv",
 	Short:        "Generate GORM models from CSV files and import their data",
 	SilenceUsage: true,
+	// main prints the returned error once; without this cobra prints it as well.
+	SilenceErrors: true,
 }
 
 // Execute runs the command-line interface.
