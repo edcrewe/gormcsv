@@ -151,6 +151,14 @@ Concurrent databases use first-commit-wins semantics when duplicate keys occur
 in different batches. Use one worker when strict source-order duplicate
 resolution is required.
 
+## JSON output
+
+For programs that drive the CLI, `--json` prints a machine-readable report on stdout instead of
+the text summaries. `inspectcsv --json` lists each generated model with its factory key and
+fields, plus skipped rows and warnings per file. `importcsv --json` prints per-file counts, the
+totals and every error as a separate string. It still exits non-zero when any row is rejected,
+so check `errors` rather than the exit status to tell a partial import from a failure.
+
 ## Container
 
 ```sh

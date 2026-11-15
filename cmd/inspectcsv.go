@@ -39,6 +39,9 @@ var inspectCSVCommand = &cobra.Command{
 		if err := inspectcsv.GenerateFile(csvMeta, output); err != nil {
 			return err
 		}
+		if jsonOutput {
+			return writeJSON(cmd.OutOrStdout(), newInspectReport(csvMeta, output))
+		}
 		if err := writeSkippedRows(cmd.ErrOrStderr(), csvMeta.SkippedRows); err != nil {
 			return err
 		}
@@ -119,6 +122,8 @@ func init() {
 	inspectCSVCommand.Flags().StringVarP(&output, "output", "o", "importcsv/models.go", "generated Go file")
 	inspectCSVCommand.Flags().StringArrayVar(&keys, "key", nil,
 		"unique key for a model, e.g. country=code or order-item=order+line; repeatable")
+	inspectCSVCommand.Flags().BoolVar(&jsonOutput, "json", false,
+		"print the generated models, skipped rows and warnings as JSON on stdout")
 	inspectCSVCommand.Flags().StringArrayVar(&dedupe, "dedupe", nil,
 		"skip rows identical to one already imported for this model, e.g. country; repeatable")
 	rootCmd.AddCommand(inspectCSVCommand)

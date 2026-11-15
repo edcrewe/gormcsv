@@ -15,9 +15,9 @@ type mappedField struct {
 }
 
 type Field struct {
-	Name string
-	Type string
-	Tag  string
+	Name string `json:"name"`
+	Type string `json:"type"`
+	Tag  string `json:"tag,omitempty"`
 }
 
 // CSVMeta - main metadata struct used by inspectcsv and importcsv

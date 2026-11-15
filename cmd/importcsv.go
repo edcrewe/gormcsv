@@ -42,6 +42,12 @@ var importCSVCommand = &cobra.Command{
 			return err
 		}
 		result, importErr := importer.Import(cmd.Context(), files)
+		if jsonOutput {
+			if err := writeJSON(cmd.OutOrStdout(), newImportReport(result, importErr)); err != nil {
+				return err
+			}
+			return importErr
+		}
 		for _, file := range result.Files {
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s: inserted %d, skipped %d duplicates, rejected %d\n",
 				file.Model, file.Inserted, file.Duplicates, file.Rejected); err != nil {
@@ -57,5 +63,7 @@ func init() {
 	importCSVCommand.Flags().StringVarP(&dsn, "dsn", "d", "gormcsv.db", "database connection string or SQLite path")
 	importCSVCommand.Flags().IntVarP(&batchSize, "batch-size", "b", 1000, "records per database batch")
 	importCSVCommand.Flags().IntVarP(&workers, "workers", "w", 4, "concurrent database writers (SQLite is always one)")
+	importCSVCommand.Flags().BoolVar(&jsonOutput, "json", false,
+		"print per-file counts and every error as JSON on stdout; still exits non-zero on errors")
 	rootCmd.AddCommand(importCSVCommand)
 }
