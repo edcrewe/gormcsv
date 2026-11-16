@@ -124,3 +124,36 @@ func TestImportJSONReportsPartialResultsAndStillFails(t *testing.T) {
 		t.Errorf("report = %+v", report)
 	}
 }
+
+func TestTablesJSON(t *testing.T) {
+	resetConnectionFlags(t)
+	directory := t.TempDir()
+	csvPath := filepath.Join(directory, "TestTypes.csv")
+	if err := os.WriteFile(csvPath, []byte("wordcol\nok\nalso\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(directory, "t.db")
+	if _, err := run(t, "importcsv", "--files", csvPath, "--dsn", dbPath); err != nil {
+		t.Fatal(err)
+	}
+	resetFlags := func() {
+		flag := importCSVCommand.Flags().Lookup("dsn")
+		_ = flag.Value.Set(flag.DefValue)
+		flag.Changed = false
+	}
+	resetFlags()
+	t.Setenv("GORMCSV_DSN", dbPath)
+
+	stdout, err := run(t, "tables", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var report TablesReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", err, stdout)
+	}
+	if len(report.Tables) != 1 || report.Tables[0].Name != "test_types" || report.Tables[0].Rows != 2 {
+		t.Errorf("report = %+v", report)
+	}
+}

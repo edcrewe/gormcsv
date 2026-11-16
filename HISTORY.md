@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* Add `gormcsv tables` (and `--json`) to list the database's tables with row counts, columns in
+  table order with their database types, and indexes, including the unique ones `--key` and
+  `--dedupe` create. It takes `--driver`/`--dsn` or `GORMCSV_DB_DRIVER`/`GORMCSV_DSN`, like
+  `importcsv`.
 * `importcsv` reads `GORMCSV_DB_DRIVER` and `GORMCSV_DSN` when `--driver` and `--dsn` are not
   given, so a password need not appear on the command line, where every local user can see it in
   the process list. Flags still win.

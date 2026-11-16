@@ -76,9 +76,17 @@ func connectionSettings(cmd *cobra.Command, getenv func(string) string) (string,
 	return pick("driver", driver, "GORMCSV_DB_DRIVER"), pick("dsn", dsn, "GORMCSV_DSN")
 }
 
+// addConnectionFlags adds --driver and --dsn, which importcsv and tables share.
+func addConnectionFlags(command *cobra.Command) {
+	command.Flags().StringVar(&driver, "driver", "sqlite",
+		"database driver: sqlite, postgres, or mysql; GORMCSV_DB_DRIVER applies when not given")
+	command.Flags().StringVarP(&dsn, "dsn", "d", "gormcsv.db",
+		"database connection string or SQLite path; GORMCSV_DSN applies when not given, "+
+			"keeping a password out of the process list")
+}
+
 func init() {
-	importCSVCommand.Flags().StringVar(&driver, "driver", "sqlite", "database driver: sqlite, postgres, or mysql; GORMCSV_DB_DRIVER applies when not given")
-	importCSVCommand.Flags().StringVarP(&dsn, "dsn", "d", "gormcsv.db", "database connection string or SQLite path; GORMCSV_DSN applies when not given, keeping a password out of the process list")
+	addConnectionFlags(importCSVCommand)
 	importCSVCommand.Flags().IntVarP(&batchSize, "batch-size", "b", 1000, "records per database batch")
 	importCSVCommand.Flags().IntVarP(&workers, "workers", "w", 4, "concurrent database writers (SQLite is always one)")
 	importCSVCommand.Flags().BoolVar(&jsonOutput, "json", false,

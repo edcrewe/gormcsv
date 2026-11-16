@@ -161,6 +161,19 @@ Concurrent databases use first-commit-wins semantics when duplicate keys occur
 in different batches. Use one worker when strict source-order duplicate
 resolution is required.
 
+## List tables
+
+`gormcsv tables` shows what is in the database: each table with its row count and number of
+columns. With `--json` it also lists every column (in table order, with its database type,
+nullability and primary key flag) and every index, including the unique ones `--key` and
+`--dedupe` create. It connects the same way as `importcsv`, from `--driver` and `--dsn` or the
+environment:
+
+```sh
+GORMCSV_DB_DRIVER=postgres GORMCSV_DSN='host=localhost user=gormcsv password=secret dbname=gormcsv' \
+  go run . tables --json
+```
+
 ## JSON output
 
 For programs that drive the CLI, `--json` prints a machine-readable report on stdout instead of
