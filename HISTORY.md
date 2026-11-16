@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* GORM's own log lines, such as connection errors and slow queries, now go to stderr without
+  colour codes. They went to stdout, which corrupted `--json` output.
 * `inspectcsv` skips rows with the wrong number of fields instead of failing the file, and
   reports their line numbers on stderr, matching how `importcsv` rejects them.
 * Add `--json` to `inspectcsv` and `importcsv` for programs that drive the CLI. `inspectcsv` reports

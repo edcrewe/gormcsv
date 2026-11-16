@@ -395,3 +395,23 @@ func TestImportDedupeSkipsIdenticalRows(t *testing.T) {
 		t.Errorf("stored %d rows, want 3", count)
 	}
 }
+
+func TestOpenDatabaseLogsToLogWriterWithoutColour(t *testing.T) {
+	var logged strings.Builder
+	previous := logWriter
+	logWriter = &logged
+	t.Cleanup(func() { logWriter = previous })
+
+	db, err := OpenSQLite(filepath.Join(t.TempDir(), "log.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Exec("SELECT * FROM missing_table")
+
+	if !strings.Contains(logged.String(), "no such table: missing_table") {
+		t.Errorf("GORM error not written to logWriter: %q", logged.String())
+	}
+	if strings.Contains(logged.String(), "\x1b[") {
+		t.Errorf("log lines should have no ANSI colour codes: %q", logged.String())
+	}
+}

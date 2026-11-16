@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/edcrewe/gormcsv/meta"
 	"gorm.io/driver/mysql"
@@ -16,6 +18,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 )
 
 const defaultBatchSize = 1000
@@ -99,6 +102,19 @@ func OpenSQLite(path string) (*gorm.DB, error) {
 	return OpenDatabase("sqlite", path)
 }
 
+// logWriter receives GORM's own log lines, such as connection errors and slow queries. GORM's
+// default logger writes to stdout, which mixed its coloured lines into the command output and
+// broke --json. Tests may replace it.
+var logWriter io.Writer = os.Stderr
+
+func databaseLogger() logger.Interface {
+	return logger.New(log.New(logWriter, "\r\n", log.LstdFlags), logger.Config{
+		SlowThreshold:             200 * time.Millisecond,
+		LogLevel:                  logger.Warn,
+		IgnoreRecordNotFoundError: true,
+	})
+}
+
 // OpenDatabase opens a supported GORM database with portable error translation.
 func OpenDatabase(driver, dsn string) (*gorm.DB, error) {
 	var dialector gorm.Dialector
@@ -112,7 +128,7 @@ func OpenDatabase(driver, dsn string) (*gorm.DB, error) {
 	default:
 		return nil, fmt.Errorf("unsupported database driver %q", driver)
 	}
-	db, err := gorm.Open(dialector, &gorm.Config{TranslateError: true})
+	db, err := gorm.Open(dialector, &gorm.Config{TranslateError: true, Logger: databaseLogger()})
 	if err != nil {
 		return nil, fmt.Errorf("open %s database: %w", driver, err)
 	}
