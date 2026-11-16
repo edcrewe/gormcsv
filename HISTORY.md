@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* Add `gormcsv rows --table name` (and `--json`) to page through a table: `--limit` (at most 1000),
+  `--offset`, `--order column` and `--desc`, with the total row count. The table and column are
+  checked against the database's catalogue before use; it sorts by the primary key by default.
 * Add `gormcsv tables` (and `--json`) to list the database's tables with row counts, columns in
   table order with their database types, and indexes, including the unique ones `--key` and
   `--dedupe` create. It takes `--driver`/`--dsn` or `GORMCSV_DB_DRIVER`/`GORMCSV_DSN`, like

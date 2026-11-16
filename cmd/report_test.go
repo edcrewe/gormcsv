@@ -7,10 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/edcrewe/gormcsv/importcsv"
 	"github.com/edcrewe/gormcsv/meta"
+	"github.com/edcrewe/gormcsv/schema"
 )
 
 func TestNewInspectReportSortsModelsAndNeverHasNullFields(t *testing.T) {
@@ -155,5 +157,42 @@ func TestTablesJSON(t *testing.T) {
 	}
 	if len(report.Tables) != 1 || report.Tables[0].Name != "test_types" || report.Tables[0].Rows != 2 {
 		t.Errorf("report = %+v", report)
+	}
+}
+
+func TestRowsJSONAndNotFound(t *testing.T) {
+	resetConnectionFlags(t)
+	directory := t.TempDir()
+	csvPath := filepath.Join(directory, "TestTypes.csv")
+	if err := os.WriteFile(csvPath, []byte("wordcol\nb\na\nc\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(directory, "t.db")
+	if _, err := run(t, "importcsv", "--files", csvPath, "--dsn", dbPath); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { rowsQuery = schema.RowsQuery{Limit: 50} })
+
+	stdout, err := run(t, "rows", "--dsn", dbPath, "--table", "test_types", "--limit", "2",
+		"--offset", "1", "--order", "wordcol", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var page schema.Page
+	if err := json.Unmarshal([]byte(stdout), &page); err != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", err, stdout)
+	}
+	words := []any{}
+	for _, row := range page.Rows {
+		words = append(words, row[slices.Index(page.Columns, "wordcol")])
+	}
+	if page.Total != 3 || page.Order != "wordcol" || !reflect.DeepEqual(words, []any{"b", "c"}) {
+		t.Errorf("page = %+v", page)
+	}
+
+	rowsQuery = schema.RowsQuery{Limit: 50}
+	_, err = run(t, "rows", "--dsn", dbPath, "--table", "missing")
+	if err == nil || err.Error() != `no table "missing": not found` {
+		t.Errorf("err = %v", err)
 	}
 }

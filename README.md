@@ -174,6 +174,19 @@ GORMCSV_DB_DRIVER=postgres GORMCSV_DSN='host=localhost user=gormcsv password=sec
   go run . tables --json
 ```
 
+## Browse rows
+
+`gormcsv rows` prints one page of a table, for checking what an import loaded:
+
+```sh
+go run . rows --table countries --limit 20 --offset 40 --order name --desc --json
+```
+
+`--limit` is at most 1000. Without `--order` it sorts by the primary key, so pages never overlap.
+The table and the sort column must exist in the database's own catalogue, so a name can never
+inject SQL. The JSON lists the column names once and each row as values in that order, with
+the table's total row count for paging.
+
 ## JSON output
 
 For programs that drive the CLI, `--json` prints a machine-readable report on stdout instead of
