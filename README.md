@@ -140,6 +140,16 @@ go run . importcsv --files ./fixtures --driver postgres \
   --batch-size 1000 --workers 8
 ```
 
+A DSN given with `--dsn` is visible to every user on the machine in the process
+list while the import runs. To keep a password out of it, set the connection in
+the environment instead; `--driver` and `--dsn` still win when given:
+
+```sh
+export GORMCSV_DB_DRIVER=postgres
+export GORMCSV_DSN='host=localhost user=gormcsv password=secret dbname=gormcsv sslmode=disable'
+go run . importcsv --files ./fixtures
+```
+
 Each worker can hold one batch insert in flight. GORM uses Go's
 `database/sql` connection pool underneath, and the CLI sets the pool's maximum
 open connections to the requested worker count. SQLite is always restricted to
