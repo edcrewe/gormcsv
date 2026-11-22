@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - JSON output, tables and rows commands - 22 Nov 2026
 
 * Each run builds its own command tree, with flag values held per command. Commands shared
   package-level flag variables, so a program running the CLI more than once in one process could
