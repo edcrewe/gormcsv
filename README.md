@@ -17,6 +17,9 @@ The project demonstrates a small, testable Go import pipeline:
 - Core packages return structured results and errors. Only the CLI writes user
   output or chooses process exit status.
 
+It has a partner project, [gormcsv-admin](https://github.com/edcrewe/gormcsv-admin), that can be used with it if a web UI is required
+for ingesting CSV files and inspecting the results, rather than just using the default command line interface and the appropriate database's CLI command.
+
 ## Requirements
 
 - Go 1.25 or newer
