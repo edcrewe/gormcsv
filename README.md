@@ -17,8 +17,20 @@ The project demonstrates a small, testable Go import pipeline:
 - Core packages return structured results and errors. Only the CLI writes user
   output or chooses process exit status.
 
-It has a partner project, [gormcsv-admin](https://github.com/edcrewe/gormcsv-admin), that can be used with it if a web UI is required
-for ingesting CSV files and inspecting the results, rather than just using the default command line interface and the appropriate database's CLI.
+It has a partner project, [gormcsv-admin](https://github.com/edcrewe/gormcsv-admin), a web UI for
+ingesting CSV files and inspecting the results, for when the command line and the database's own
+CLI are not enough. It needs gormcsv `v0.4.0` or later.
+
+## Install
+
+```sh
+go install github.com/edcrewe/gormcsv@latest   # or @v0.4.0
+```
+
+Each [GitHub release](https://github.com/edcrewe/gormcsv/releases) also has a Linux binary and an
+SPDX SBOM, `sbom.spdx.json`. Installed binaries import the models generated from
+`static/fixtures`; to import your own CSVs, generate their models and build from a checkout, as
+below.
 
 ## Requirements
 
@@ -138,7 +150,7 @@ For PostgreSQL or MySQL, pass the corresponding driver and its GORM
 connection string. For example:
 
 ```sh
-go run . importcsv --files ./fixtures --driver postgres \
+go run . importcsv --files static/fixtures --driver postgres \
   --dsn 'host=localhost user=gormcsv password=secret dbname=gormcsv sslmode=disable' \
   --batch-size 1000 --workers 8
 ```
@@ -150,7 +162,7 @@ the environment instead; `--driver` and `--dsn` still win when given:
 ```sh
 export GORMCSV_DB_DRIVER=postgres
 export GORMCSV_DSN='host=localhost user=gormcsv password=secret dbname=gormcsv sslmode=disable'
-go run . importcsv --files ./fixtures
+go run . importcsv --files static/fixtures
 ```
 
 Each worker can hold one batch insert in flight. GORM uses Go's
@@ -187,6 +199,8 @@ go run . rows --table countries --limit 20 --offset 40 --order name --desc --jso
 ```
 
 `--limit` is at most 1000. Without `--order` it sorts by the primary key, so pages never overlap.
+Sorting by a column with repeated values gives those rows no fixed order between them, so paging
+through them can repeat or skip some.
 The table and the sort column must exist in the database's own catalogue, and are quoted as
 identifiers, so a name can never inject SQL and names with spaces or dots work. The JSON lists the
 column names once and each row as values in that order, with the table's total row count for

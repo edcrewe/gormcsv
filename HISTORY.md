@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+* Remove `cmd/gormcsv.db`, a test database committed by mistake, and ignore SQLite databases.
+* README: install with `go install` or from a release, fix the `--files` paths in the examples,
+  and note that sorting `rows` by a column with repeated values does not page stably.
+
 ## 0.4.0 - JSON output, tables and rows commands - 22 Nov 2026
 
 * Each run builds its own command tree, with flag values held per command. Commands shared
