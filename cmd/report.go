@@ -10,9 +10,6 @@ import (
 	"github.com/edcrewe/gormcsv/meta"
 )
 
-// jsonOutput is set by --json on inspectcsv and importcsv, for programs that drive the CLI.
-var jsonOutput bool
-
 // InspectReport is the --json output of inspectcsv.
 type InspectReport struct {
 	Output      string              `json:"output"`

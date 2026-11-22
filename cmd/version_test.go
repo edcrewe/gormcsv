@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"runtime/debug"
 	"testing"
 )
@@ -45,33 +44,20 @@ func TestResolveVersion(t *testing.T) {
 }
 
 func TestVersionCommandPrintsVersion(t *testing.T) {
-	var out bytes.Buffer
-	rootCmd.SetOut(&out)
-	rootCmd.SetArgs([]string{"version"})
-	t.Cleanup(func() {
-		rootCmd.SetOut(nil)
-		rootCmd.SetArgs(nil)
-	})
-
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	if got, want := out.String(), "gormcsv "+currentVersion()+"\n"; got != want {
-		t.Errorf("version output = %q, want %q", got, want)
+	want := "gormcsv " + currentVersion() + "\n"
+	for _, args := range [][]string{{"version"}} {
+		out, _, err := execute(args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != want {
+			t.Errorf("%v output = %q, want %q", args, out, want)
+		}
 	}
 }
 
 func TestVersionCommandRejectsArgs(t *testing.T) {
-	rootCmd.SetOut(&bytes.Buffer{})
-	rootCmd.SetErr(&bytes.Buffer{})
-	rootCmd.SetArgs([]string{"version", "extra"})
-	t.Cleanup(func() {
-		rootCmd.SetOut(nil)
-		rootCmd.SetErr(nil)
-		rootCmd.SetArgs(nil)
-	})
-
-	if err := rootCmd.Execute(); err == nil {
+	if _, _, err := execute("version", "extra"); err == nil {
 		t.Error("expected an error for unexpected arguments")
 	}
 }

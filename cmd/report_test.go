@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -54,22 +53,11 @@ func TestNewImportReportListsEachJoinedErrorSeparately(t *testing.T) {
 	}
 }
 
-// run executes the CLI with args and returns stdout, resetting the flags it sets.
+// run executes the CLI with args and returns stdout.
 func run(t *testing.T, args ...string) (string, error) {
 	t.Helper()
-	var out bytes.Buffer
-	rootCmd.SetOut(&out)
-	rootCmd.SetErr(&bytes.Buffer{})
-	rootCmd.SetArgs(args)
-	t.Cleanup(func() {
-		rootCmd.SetOut(nil)
-		rootCmd.SetErr(nil)
-		rootCmd.SetArgs(nil)
-		jsonOutput = false
-		files = ""
-	})
-	err := rootCmd.Execute()
-	return out.String(), err
+	out, _, err := execute(args...)
+	return out, err
 }
 
 func TestInspectJSON(t *testing.T) {
@@ -128,7 +116,6 @@ func TestImportJSONReportsPartialResultsAndStillFails(t *testing.T) {
 }
 
 func TestTablesJSON(t *testing.T) {
-	resetConnectionFlags(t)
 	directory := t.TempDir()
 	csvPath := filepath.Join(directory, "TestTypes.csv")
 	if err := os.WriteFile(csvPath, []byte("wordcol\nok\nalso\n"), 0o600); err != nil {
@@ -138,12 +125,6 @@ func TestTablesJSON(t *testing.T) {
 	if _, err := run(t, "importcsv", "--files", csvPath, "--dsn", dbPath); err != nil {
 		t.Fatal(err)
 	}
-	resetFlags := func() {
-		flag := importCSVCommand.Flags().Lookup("dsn")
-		_ = flag.Value.Set(flag.DefValue)
-		flag.Changed = false
-	}
-	resetFlags()
 	t.Setenv("GORMCSV_DSN", dbPath)
 
 	stdout, err := run(t, "tables", "--json")
@@ -161,7 +142,6 @@ func TestTablesJSON(t *testing.T) {
 }
 
 func TestRowsJSONAndNotFound(t *testing.T) {
-	resetConnectionFlags(t)
 	directory := t.TempDir()
 	csvPath := filepath.Join(directory, "TestTypes.csv")
 	if err := os.WriteFile(csvPath, []byte("wordcol\nb\na\nc\n"), 0o600); err != nil {
@@ -171,8 +151,6 @@ func TestRowsJSONAndNotFound(t *testing.T) {
 	if _, err := run(t, "importcsv", "--files", csvPath, "--dsn", dbPath); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { rowsQuery = schema.RowsQuery{Limit: 50} })
-
 	stdout, err := run(t, "rows", "--dsn", dbPath, "--table", "test_types", "--limit", "2",
 		"--offset", "1", "--order", "wordcol", "--json")
 	if err != nil {
@@ -190,7 +168,6 @@ func TestRowsJSONAndNotFound(t *testing.T) {
 		t.Errorf("page = %+v", page)
 	}
 
-	rowsQuery = schema.RowsQuery{Limit: 50}
 	_, err = run(t, "rows", "--dsn", dbPath, "--table", "missing")
 	if err == nil || err.Error() != `no table "missing": not found` {
 		t.Errorf("err = %v", err)

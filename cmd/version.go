@@ -38,20 +38,16 @@ func currentVersion() string {
 	return resolveVersion(Version, info, ok)
 }
 
-var versionCommand = &cobra.Command{
-	Use:   "version",
-	Short: "Print the gormcsv version",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "gormcsv %s\n", currentVersion()); err != nil {
-			return fmt.Errorf("write version: %w", err)
-		}
-		return nil
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(versionCommand)
-	rootCmd.Version = currentVersion()
-	rootCmd.SetVersionTemplate("gormcsv {{.Version}}\n")
+func newVersionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print the gormcsv version",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "gormcsv %s\n", currentVersion()); err != nil {
+				return fmt.Errorf("write version: %w", err)
+			}
+			return nil
+		},
+	}
 }

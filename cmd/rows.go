@@ -11,39 +11,52 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rowsQuery schema.RowsQuery
+func newRowsCommand() *cobra.Command {
+	var (
+		query      schema.RowsQuery
+		jsonOutput bool
+	)
+	command := &cobra.Command{
+		Use:   "rows",
+		Short: "Print one page of a table's rows",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if query.Table == "" {
+				return fmt.Errorf("--table is required")
+			}
+			driver, dsn := connectionSettings(cmd, os.Getenv)
+			db, err := importcsv.OpenDatabase(driver, dsn)
+			if err != nil {
+				return err
+			}
+			sqlDB, err := db.DB()
+			if err != nil {
+				return fmt.Errorf("access database connection: %w", err)
+			}
+			defer func() { _ = sqlDB.Close() }()
 
-var rowsCommand = &cobra.Command{
-	Use:   "rows",
-	Short: "Print one page of a table's rows",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		if rowsQuery.Table == "" {
-			return fmt.Errorf("--table is required")
-		}
-		driver, dsn := connectionSettings(cmd, os.Getenv)
-		db, err := importcsv.OpenDatabase(driver, dsn)
-		if err != nil {
-			return err
-		}
-		sqlDB, err := db.DB()
-		if err != nil {
-			return fmt.Errorf("access database connection: %w", err)
-		}
-		defer func() { _ = sqlDB.Close() }()
-
-		page, err := schema.Rows(cmd.Context(), db, rowsQuery)
-		if errors.Is(err, schema.ErrNotFound) {
-			return fmt.Errorf("no %w", err)
-		}
-		if err != nil {
-			return err
-		}
-		if jsonOutput {
-			return writeJSON(cmd.OutOrStdout(), page)
-		}
-		return writeRows(cmd, page)
-	},
+			page, err := schema.Rows(cmd.Context(), db, query)
+			if errors.Is(err, schema.ErrNotFound) {
+				return fmt.Errorf("no %w", err)
+			}
+			if err != nil {
+				return err
+			}
+			if jsonOutput {
+				return writeJSON(cmd.OutOrStdout(), page)
+			}
+			return writeRows(cmd, page)
+		},
+	}
+	addConnectionFlags(command)
+	flags := command.Flags()
+	flags.StringVar(&query.Table, "table", "", "table to read")
+	flags.IntVar(&query.Limit, "limit", 50, fmt.Sprintf("rows per page, at most %d", schema.MaxLimit))
+	flags.IntVar(&query.Offset, "offset", 0, "rows to skip")
+	flags.StringVar(&query.Order, "order", "", "column to sort by (default: the primary key)")
+	flags.BoolVar(&query.Desc, "desc", false, "sort in descending order")
+	flags.BoolVar(&jsonOutput, "json", false, "print the page as JSON on stdout")
+	return command
 }
 
 func writeRows(cmd *cobra.Command, page schema.Page) error {
@@ -72,16 +85,4 @@ func pageSummary(page schema.Page) string {
 	default:
 		return fmt.Sprintf("rows %d-%d of %d", page.Offset+1, page.Offset+len(page.Rows), page.Total)
 	}
-}
-
-func init() {
-	addConnectionFlags(rowsCommand)
-	flags := rowsCommand.Flags()
-	flags.StringVar(&rowsQuery.Table, "table", "", "table to read")
-	flags.IntVar(&rowsQuery.Limit, "limit", 50, fmt.Sprintf("rows per page, at most %d", schema.MaxLimit))
-	flags.IntVar(&rowsQuery.Offset, "offset", 0, "rows to skip")
-	flags.StringVar(&rowsQuery.Order, "order", "", "column to sort by (default: the primary key)")
-	flags.BoolVar(&rowsQuery.Desc, "desc", false, "sort in descending order")
-	flags.BoolVar(&jsonOutput, "json", false, "print the page as JSON on stdout")
-	rootCmd.AddCommand(rowsCommand)
 }

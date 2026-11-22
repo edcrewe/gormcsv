@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* Each run builds its own command tree, with flag values held per command. Commands shared
+  package-level flag variables, so a program running the CLI more than once in one process could
+  have one run's `--dsn`, `--driver`, `--json` or `rows` options carry into the next.
 * `tables` and `rows` quote table and column names as identifiers. GORM ran a table name
   containing a space or backtick as raw SQL and split one containing a dot, so such tables
   failed, and a crafted name in the catalogue could change the query. Columns and indexes are now
