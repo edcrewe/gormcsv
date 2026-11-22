@@ -13,7 +13,12 @@
 
 # Local build/test artifacts
 gormcsv
-test.db
+
+# SQLite databases from importcsv runs, such as the default gormcsv.db, and their journals
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # Goland files
 .idea/
