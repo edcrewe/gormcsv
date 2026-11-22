@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // Column is one column as the database reports it.
@@ -20,7 +19,9 @@ type Column struct {
 	PrimaryKey bool   `json:"primaryKey"`
 }
 
-// Index is an index on a table, such as the unique index --key or --dedupe adds.
+// Index is an index on a table, such as the unique index --key or --dedupe adds or one behind a
+// UNIQUE constraint. Columns are in key order; an expression shows as "(expression)". The
+// primary key's own index is not listed, since Column.PrimaryKey shows it.
 type Index struct {
 	Name    string   `json:"name"`
 	Columns []string `json:"columns"`
@@ -60,33 +61,16 @@ func Describe(ctx context.Context, db *gorm.DB) ([]Table, error) {
 }
 
 func describeTable(db *gorm.DB, name string) (Table, error) {
-	table := Table{Name: name, Columns: []Column{}, Indexes: []Index{}}
-	// The name comes from the database's own catalogue, and GORM quotes it.
-	if err := db.Table(name).Count(&table.Rows).Error; err != nil {
+	table := Table{Name: name}
+	if err := fromTable(db, name).Count(&table.Rows).Error; err != nil {
 		return table, fmt.Errorf("count rows in %q: %w", name, err)
 	}
-	columnTypes, err := db.Migrator().ColumnTypes(name)
-	if err != nil {
+	var err error
+	if table.Columns, err = readColumns(db, name); err != nil {
 		return table, fmt.Errorf("read columns of %q: %w", name, err)
 	}
-	for _, columnType := range columnTypes {
-		column := Column{Name: columnType.Name(), Type: columnType.DatabaseTypeName()}
-		if full, ok := columnType.ColumnType(); ok && full != "" {
-			column.Type = full
-		}
-		column.Nullable, _ = columnType.Nullable()
-		column.PrimaryKey, _ = columnType.PrimaryKey()
-		table.Columns = append(table.Columns, column)
-	}
-	// The SQLite migrator logs its index queries in debug mode; a discarding logger stays silent.
-	quiet := db.Session(&gorm.Session{Logger: logger.Discard})
-	indexes, err := quiet.Migrator().GetIndexes(name)
-	if err != nil {
+	if table.Indexes, err = readIndexes(db, name); err != nil {
 		return table, fmt.Errorf("read indexes of %q: %w", name, err)
-	}
-	for _, index := range indexes {
-		unique, _ := index.Unique()
-		table.Indexes = append(table.Indexes, Index{Name: index.Name(), Columns: index.Columns(), Unique: unique})
 	}
 	sort.Slice(table.Indexes, func(i, j int) bool { return table.Indexes[i].Name < table.Indexes[j].Name })
 	return table, nil

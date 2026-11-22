@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -26,7 +27,8 @@ type RowsQuery struct {
 	Desc  bool
 }
 
-// Page is one page of rows. Each row lists its values in Columns order.
+// Page is one page of rows. Each row lists its values in Columns order. Integers too large for a
+// JavaScript number to hold exactly are strings of digits.
 type Page struct {
 	Table   string   `json:"table"`
 	Columns []string `json:"columns"`
@@ -40,7 +42,7 @@ type Page struct {
 }
 
 // Rows reads one page of a table. The table and order column are checked against the database's
-// own catalogue, and GORM quotes them, so neither reaches SQL as raw input.
+// own catalogue and quoted as identifiers, so neither reaches SQL as raw input.
 func Rows(ctx context.Context, db *gorm.DB, query RowsQuery) (Page, error) {
 	if query.Limit < 1 || query.Limit > MaxLimit {
 		return Page{}, fmt.Errorf("limit must be from 1 to %d", MaxLimit)
@@ -56,17 +58,18 @@ func Rows(ctx context.Context, db *gorm.DB, query RowsQuery) (Page, error) {
 	if !slices.Contains(tables, query.Table) {
 		return Page{}, fmt.Errorf("table %q: %w", query.Table, ErrNotFound)
 	}
-	columnTypes, err := db.Migrator().ColumnTypes(query.Table)
+	columns, err := readColumns(db, query.Table)
 	if err != nil {
 		return Page{}, fmt.Errorf("read columns of %q: %w", query.Table, err)
 	}
-	page := Page{Table: query.Table, Rows: [][]any{}, Limit: query.Limit, Offset: query.Offset, Desc: query.Desc}
-	for _, columnType := range columnTypes {
-		page.Columns = append(page.Columns, columnType.Name())
-		if query.Order == "" {
-			if primary, _ := columnType.PrimaryKey(); primary {
-				page.Order = columnType.Name()
-			}
+	page := Page{
+		Table: query.Table, Columns: []string{}, Rows: [][]any{},
+		Limit: query.Limit, Offset: query.Offset, Desc: query.Desc,
+	}
+	for _, column := range columns {
+		page.Columns = append(page.Columns, column.Name)
+		if query.Order == "" && column.PrimaryKey && page.Order == "" {
+			page.Order = column.Name
 		}
 	}
 	switch {
@@ -79,12 +82,16 @@ func Rows(ctx context.Context, db *gorm.DB, query RowsQuery) (Page, error) {
 		page.Order = page.Columns[0]
 	}
 
-	if err := db.Table(query.Table).Count(&page.Total).Error; err != nil {
+	if err := fromTable(db, query.Table).Count(&page.Total).Error; err != nil {
 		return Page{}, fmt.Errorf("count rows in %q: %w", query.Table, err)
 	}
 	var records []map[string]any
-	order := clause.OrderByColumn{Column: clause.Column{Name: page.Order}, Desc: query.Desc}
-	if err := db.Table(query.Table).Order(order).Limit(query.Limit).Offset(query.Offset).Find(&records).Error; err != nil {
+	order := clause.OrderByColumn{
+		Column: clause.Column{Name: quoteIdentifier(db, page.Order), Raw: true},
+		Desc:   query.Desc,
+	}
+	err = fromTable(db, query.Table).Order(order).Limit(query.Limit).Offset(query.Offset).Find(&records).Error
+	if err != nil {
 		return Page{}, fmt.Errorf("read rows of %q: %w", query.Table, err)
 	}
 	for _, record := range records {
@@ -97,10 +104,28 @@ func Rows(ctx context.Context, db *gorm.DB, query RowsQuery) (Page, error) {
 	return page, nil
 }
 
-// jsonValue turns driver values that do not encode well, such as []byte text, into strings.
+// maxSafeInteger is the largest integer a JSON reader using float64 numbers, such as JavaScript,
+// holds exactly (2^53 - 1).
+const maxSafeInteger = 1<<53 - 1
+
+// jsonValue turns driver values that do not encode well into strings: []byte text, and integers
+// beyond ±maxSafeInteger, which a JavaScript reader would silently round.
 func jsonValue(value any) any {
-	if bytes, ok := value.([]byte); ok {
-		return string(bytes)
+	switch v := value.(type) {
+	case []byte:
+		return string(v)
+	case int64:
+		if v > maxSafeInteger || v < -maxSafeInteger {
+			return strconv.FormatInt(v, 10)
+		}
+	case int:
+		return jsonValue(int64(v))
+	case uint64:
+		if v > maxSafeInteger {
+			return strconv.FormatUint(v, 10)
+		}
+	case uint:
+		return jsonValue(uint64(v))
 	}
 	return value
 }

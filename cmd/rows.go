@@ -55,11 +55,23 @@ func writeRows(cmd *cobra.Command, page schema.Page) error {
 		}
 		lines = append(lines, strings.Join(values, "\t"))
 	}
-	lines = append(lines, fmt.Sprintf("rows %d-%d of %d", page.Offset+1, page.Offset+len(page.Rows), page.Total))
+	lines = append(lines, pageSummary(page))
 	if _, err := fmt.Fprintln(cmd.OutOrStdout(), strings.Join(lines, "\n")); err != nil {
 		return fmt.Errorf("write rows: %w", err)
 	}
 	return nil
+}
+
+// pageSummary says which rows are shown, e.g. "rows 41-60 of 245".
+func pageSummary(page schema.Page) string {
+	switch {
+	case page.Total == 0:
+		return "no rows"
+	case len(page.Rows) == 0:
+		return fmt.Sprintf("no rows at offset %d; the table has %d", page.Offset, page.Total)
+	default:
+		return fmt.Sprintf("rows %d-%d of %d", page.Offset+1, page.Offset+len(page.Rows), page.Total)
+	}
 }
 
 func init() {

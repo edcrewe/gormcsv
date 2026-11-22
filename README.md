@@ -168,9 +168,10 @@ resolution is required.
 
 `gormcsv tables` shows what is in the database: each table with its row count and number of
 columns. With `--json` it also lists every column (in table order, with its database type,
-nullability and primary key flag) and every index, including the unique ones `--key` and
-`--dedupe` create. It connects the same way as `importcsv`, from `--driver` and `--dsn` or the
-environment:
+nullability and primary key flag) and every index other than the primary key's, in key order:
+the unique ones `--key` and `--dedupe` create, and those behind `UNIQUE` constraints. An
+expression in an index shows as `(expression)`. It connects the same way as `importcsv`, from
+`--driver` and `--dsn` or the environment:
 
 ```sh
 GORMCSV_DB_DRIVER=postgres GORMCSV_DSN='host=localhost user=gormcsv password=secret dbname=gormcsv' \
@@ -186,9 +187,11 @@ go run . rows --table countries --limit 20 --offset 40 --order name --desc --jso
 ```
 
 `--limit` is at most 1000. Without `--order` it sorts by the primary key, so pages never overlap.
-The table and the sort column must exist in the database's own catalogue, so a name can never
-inject SQL. The JSON lists the column names once and each row as values in that order, with
-the table's total row count for paging.
+The table and the sort column must exist in the database's own catalogue, and are quoted as
+identifiers, so a name can never inject SQL and names with spaces or dots work. The JSON lists the
+column names once and each row as values in that order, with the table's total row count for
+paging. Integers beyond ±(2^53 − 1), which a JavaScript number cannot hold exactly, are strings of
+digits.
 
 ## JSON output
 

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+* `tables` and `rows` quote table and column names as identifiers. GORM ran a table name
+  containing a space or backtick as raw SQL and split one containing a dot, so such tables
+  failed, and a crafted name in the catalogue could change the query. Columns and indexes are now
+  read from each database's catalogue with the name as a bound parameter.
+* `tables` lists the indexes behind `UNIQUE` constraints, which GORM's SQLite and PostgreSQL
+  migrators left out, keeps composite index columns in key order, shows an expression as
+  `(expression)`, and leaves out the primary key's own index. PostgreSQL column types are the
+  catalogue's full names, such as `character varying(64)`.
+* `rows --json` gives integers beyond ±(2^53 − 1) as strings, so JavaScript readers do not round
+  them. The text output says `no rows at offset 999; the table has 6` past the end, instead of
+  `rows 1000-999 of 6`.
 * Add `gormcsv rows --table name` (and `--json`) to page through a table: `--limit` (at most 1000),
   `--offset`, `--order column` and `--desc`, with the total row count. The table and column are
   checked against the database's catalogue before use; it sorts by the primary key by default.
