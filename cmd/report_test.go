@@ -196,3 +196,23 @@ func TestRowsJSONAndNotFound(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+func TestPageSummary(t *testing.T) {
+	rows := [][]any{{1}, {2}}
+	tests := map[string]struct {
+		page schema.Page
+		want string
+	}{
+		"a page":        {schema.Page{Rows: rows, Offset: 40, Total: 245}, "rows 41-42 of 245"},
+		"empty table":   {schema.Page{Rows: [][]any{}, Total: 0}, "no rows"},
+		"past the end":  {schema.Page{Rows: [][]any{}, Offset: 999, Total: 6}, "no rows at offset 999; the table has 6"},
+		"the last page": {schema.Page{Rows: rows[:1], Offset: 5, Total: 6}, "rows 6-6 of 6"},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := pageSummary(test.page); got != test.want {
+				t.Errorf("pageSummary() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}

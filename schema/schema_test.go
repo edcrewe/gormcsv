@@ -114,3 +114,100 @@ func TestDescribeEmptyDatabase(t *testing.T) {
 		t.Errorf("Describe() = %v, %v; want an empty, non-nil list", tables, err)
 	}
 }
+
+// oddTable has a name that GORM's Table would run as raw SQL: if it did, counting it would read
+// countries with a false condition instead.
+const oddTable = "countries WHERE 1 = 0"
+
+// createOddTables adds tables whose names and columns need quoting, and one with UNIQUE
+// constraints, which have indexes that GORM's migrators leave out.
+func createOddTables(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	statements := []string{
+		`CREATE TABLE "countries WHERE 1 = 0" (id integer PRIMARY KEY, "a.b" text, "q""uote" text)`,
+		`INSERT INTO "countries WHERE 1 = 0" (id, "a.b") VALUES (1, 'second'), (2, 'first')`,
+		`CREATE TABLE "dotted.name" (id integer PRIMARY KEY)`,
+		`CREATE TABLE constrained (
+			id integer PRIMARY KEY, code text UNIQUE, x text, y text,
+			CONSTRAINT constrained_pair UNIQUE (y, x)
+		)`,
+	}
+	drop := func() {
+		for _, name := range []string{`"countries WHERE 1 = 0"`, `"dotted.name"`, "constrained"} {
+			_ = db.Exec("DROP TABLE IF EXISTS " + name).Error
+		}
+	}
+	drop()
+	t.Cleanup(drop)
+	for _, statement := range statements {
+		if err := db.Exec(statement).Error; err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+	}
+}
+
+func tableNamed(t *testing.T, tables []Table, name string) Table {
+	t.Helper()
+	for _, table := range tables {
+		if table.Name == name {
+			return table
+		}
+	}
+	t.Fatalf("no table %q in %v", name, tables)
+	return Table{}
+}
+
+func TestDescribeQuotesTableNames(t *testing.T) {
+	db := openDatabase(t)
+	if err := db.Create(&[]Country{{Code: "AF", Name: "Afghanistan"}, {Code: "AL", Name: "Albania"}}).Error; err != nil {
+		t.Fatal(err)
+	}
+	createOddTables(t, db)
+
+	tables, err := Describe(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	odd := tableNamed(t, tables, oddTable)
+	if odd.Rows != 2 {
+		t.Errorf("%q rows = %d, want its own 2, not a count of countries", oddTable, odd.Rows)
+	}
+	names := make([]string, len(odd.Columns))
+	for i, column := range odd.Columns {
+		names[i] = column.Name
+	}
+	if want := []string{"id", "a.b", `q"uote`}; !reflect.DeepEqual(names, want) {
+		t.Errorf("columns = %v, want %v", names, want)
+	}
+	if !odd.Columns[0].PrimaryKey || odd.Columns[1].PrimaryKey {
+		t.Errorf("only id should be the primary key: %+v", odd.Columns)
+	}
+	if dotted := tableNamed(t, tables, "dotted.name"); len(dotted.Columns) != 1 {
+		t.Errorf("dotted.name columns = %+v", dotted.Columns)
+	}
+}
+
+func TestDescribeListsIndexesBehindUniqueConstraints(t *testing.T) {
+	db := openDatabase(t)
+	createOddTables(t, db)
+
+	tables, err := Describe(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	indexes := tableNamed(t, tables, "constrained").Indexes
+	columns := make([][]string, len(indexes))
+	for i, index := range indexes {
+		columns[i] = index.Columns
+		if !index.Unique {
+			t.Errorf("index %q should be unique", index.Name)
+		}
+	}
+	// Names differ by database; the key order of the composite constraint must not.
+	if !reflect.DeepEqual(columns, [][]string{{"code"}, {"y", "x"}}) &&
+		!reflect.DeepEqual(columns, [][]string{{"y", "x"}, {"code"}}) {
+		t.Errorf("indexes = %+v, want code and (y, x), without the primary key", indexes)
+	}
+}

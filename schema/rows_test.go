@@ -161,11 +161,95 @@ func TestRowsRejectsUnknownNamesAndBadPaging(t *testing.T) {
 	}
 }
 
-func TestJSONValueTurnsBytesIntoText(t *testing.T) {
-	if got := jsonValue([]byte("abc")); got != "abc" {
-		t.Errorf("jsonValue = %#v", got)
+func TestJSONValue(t *testing.T) {
+	tests := []struct {
+		in   any
+		want any
+	}{
+		{[]byte("abc"), "abc"},
+		{int64(3), int64(3)},
+		{int64(maxSafeInteger), int64(maxSafeInteger)},
+		{int64(-maxSafeInteger), int64(-maxSafeInteger)},
+		{int64(maxSafeInteger + 1), "9007199254740992"},
+		{int64(-maxSafeInteger - 1), "-9007199254740992"},
+		{int(maxSafeInteger + 1), "9007199254740992"},
+		{uint64(maxSafeInteger), uint64(maxSafeInteger)},
+		{uint64(1 << 63), "9223372036854775808"},
+		{uint(maxSafeInteger + 1), "9007199254740992"},
+		{int32(7), int32(7)},
+		{3.5, 3.5},
+		{nil, nil},
 	}
-	if got := jsonValue(int64(3)); got != int64(3) {
-		t.Errorf("jsonValue = %#v", got)
+	for _, test := range tests {
+		if got := jsonValue(test.in); !reflect.DeepEqual(got, test.want) {
+			t.Errorf("jsonValue(%#v) = %#v, want %#v", test.in, got, test.want)
+		}
+	}
+}
+
+func TestRowsQuotesTableAndColumnNames(t *testing.T) {
+	db := openDatabase(t)
+	if err := db.Create(&Country{Code: "AF", Name: "Afghanistan"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	createOddTables(t, db)
+
+	page, err := Rows(context.Background(), db, RowsQuery{Table: oddTable, Limit: 5, Order: "a.b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if page.Total != 2 || page.Order != "a.b" {
+		t.Errorf("page = total %d, order %q", page.Total, page.Order)
+	}
+	if got := column(page, "a.b"); !reflect.DeepEqual(got, []any{"first", "second"}) {
+		t.Errorf("a.b values = %v, want sorted by that column", got)
+	}
+	if !reflect.DeepEqual(page.Columns, []string{"id", "a.b", `q"uote`}) {
+		t.Errorf("columns = %v", page.Columns)
+	}
+}
+
+func TestRowsReadsATableWithNoRows(t *testing.T) {
+	db := openDatabase(t)
+	createOddTables(t, db)
+
+	page, err := Rows(context.Background(), db, RowsQuery{Table: "dotted.name", Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 0 || len(page.Rows) != 0 || page.Order != "id" {
+		t.Errorf("page = %+v", page)
+	}
+}
+
+func TestRowsKeepsLargeIntegersExact(t *testing.T) {
+	db := openDatabase(t)
+	type Big struct {
+		ID    uint
+		Value int64
+	}
+	t.Cleanup(func() { _ = db.Migrator().DropTable(&Big{}) })
+	if err := db.Migrator().DropTable(&Big{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&Big{}); err != nil {
+		t.Fatal(err)
+	}
+	values := []int64{maxSafeInteger, maxSafeInteger + 2, -maxSafeInteger - 2}
+	for _, value := range values {
+		if err := db.Create(&Big{Value: value}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	page, err := Rows(context.Background(), db, RowsQuery{Table: "bigs", Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []any{int64(maxSafeInteger), "9007199254740993", "-9007199254740993"}
+	if got := column(page, "value"); !reflect.DeepEqual(got, want) {
+		t.Errorf("values = %#v, want %#v", got, want)
 	}
 }
