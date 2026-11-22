@@ -43,9 +43,9 @@ func TestResolveVersion(t *testing.T) {
 	}
 }
 
-func TestVersionCommandPrintsVersion(t *testing.T) {
+func TestVersionCommandAndFlagPrintVersion(t *testing.T) {
 	want := "gormcsv " + currentVersion() + "\n"
-	for _, args := range [][]string{{"version"}} {
+	for _, args := range [][]string{{"version"}, {"--version"}} {
 		out, _, err := execute(args...)
 		if err != nil {
 			t.Fatal(err)

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/edcrewe/gormcsv/importcsv"
@@ -191,5 +192,50 @@ func TestPageSummary(t *testing.T) {
 				t.Errorf("pageSummary() = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+// Commands used to share package-level flag variables, so in one process a --dsn, --json or
+// --desc from one run applied to the next. Each run must start from the defaults.
+func TestRunsDoNotInheritFlagsFromEarlierRuns(t *testing.T) {
+	directory := t.TempDir()
+	csvPath := filepath.Join(directory, "TestTypes.csv")
+	if err := os.WriteFile(csvPath, []byte("wordcol\nb\na\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	imported := filepath.Join(directory, "imported.db")
+	if _, err := run(t, "importcsv", "--files", csvPath, "--dsn", imported, "--json"); err != nil {
+		t.Fatal(err)
+	}
+	// Nothing in the environment, so tables must use its own default, gormcsv.db here.
+	t.Setenv("GORMCSV_DSN", "")
+	t.Setenv("GORMCSV_DB_DRIVER", "")
+	t.Chdir(t.TempDir())
+
+	stdout, err := run(t, "tables")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stdout != "" {
+		t.Errorf("tables = %q; want the empty default database, not importcsv's --dsn or --json", stdout)
+	}
+
+	sorted, err := run(t, "rows", "--dsn", imported, "--table", "test_types", "--order", "wordcol", "--desc", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := run(t, "rows", "--dsn", imported, "--table", "test_types")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !json.Valid([]byte(sorted)) || json.Valid([]byte(plain)) {
+		t.Errorf("only the first rows run asked for JSON:\n%s\n%s", sorted, plain)
+	}
+	if want := "id\tcreated_at"; len(plain) < len(want) || plain[:len(want)] != want {
+		t.Errorf("plain rows output = %q", plain)
+	}
+	// Sorted by the primary key again, not by the earlier --order wordcol --desc: b then a.
+	if b, a := strings.Index(plain, "\tb\t"), strings.Index(plain, "\ta\t"); b < 0 || a < 0 || b > a {
+		t.Errorf("plain rows should be in id order:\n%s", plain)
 	}
 }
